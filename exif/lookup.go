@@ -179,7 +179,7 @@ func (e *Entry) Value() Value {
 
 type Lookup map[uint64]*Entry
 
-func (l Lookup) Find(path ...uint16) *Entry {
+func (l Lookup) key(path ...uint16) uint64 {
 	if len(path) > 4 {
 		panic("nah, that won't work")
 	}
@@ -188,8 +188,18 @@ func (l Lookup) Find(path ...uint16) *Entry {
 	for i := range path {
 		v |= uint64(path[i]) << ((3 - i) * 16)
 	}
+	return v
+}
 
+func (l Lookup) Find(path ...uint16) *Entry {
+	v := l.key(path...)
 	return l[v]
+}
+
+func (l Lookup) Delete(path ...uint16) {
+	v := l.key(path...)
+
+	delete(l, v)
 }
 
 func newLookup(ex *Exif) Lookup {

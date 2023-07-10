@@ -67,9 +67,8 @@ func (exif *Exif) Delete(path ...uint16) {
 
 	exif.IFDSet.Delete(path...)
 
-	// todo also remove from lookup
-	if exif.lookup == nil {
-		exif.lookup = newLookup(exif)
+	if exif.lookup != nil {
+		exif.lookup.Delete(path...)
 	}
 }
 
