@@ -1,7 +1,6 @@
 package exif
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -147,12 +146,8 @@ func (e *Entry) Value() Value {
 		case TypeASCII:
 			am := int(e.Num)
 			if len(d) < am {
-				// TODO
-				panic("invalid string (zero length)")
-			}
-			if d[am-1] != 0 {
-				// TODO
-				panic("invalid string (not \\0 terminated)")
+				// Invalid data, try to handle gracefully.
+				am = len(d)
 			}
 			count = am
 			v = string(d[:am-1])
@@ -165,10 +160,6 @@ func (e *Entry) Value() Value {
 		}
 
 		max -= count
-		if max < 0 {
-			// TODO
-			panic("uwot")
-		}
 		d = d[count:]
 	}
 
@@ -216,10 +207,10 @@ func add(parent uint64, depth int, set *IFDSet, lookup Lookup) {
 	for _, ifd := range set.IFDs {
 		for _, item := range ifd.List {
 			key := uint64(item.Tag)<<((3-depth)*16) | parent
-			// TODO
 			if _, ok := lookup[key]; ok {
+				// Pretty naive, just assume later IFD's can be ignored
+				// i.e.: IFD0 contains image and IFD1 thumbnail information.
 				continue
-				panic(fmt.Sprintf("duplicate key %016x", key))
 			}
 
 			if item.IFDSet != nil {
