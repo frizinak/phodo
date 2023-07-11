@@ -105,14 +105,14 @@ func (h HistogramElement) Encode(w pipeline.Writer) error {
 
 func (h HistogramElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	var ok bool
-	typ := r.String(0)
+	typ := r.String()
 	h.output, ok = outputValue[typ]
 	if !ok {
 		return nil, fmt.Errorf("invalid historgram type: '%s'", typ)
 	}
-	h.w = r.Int(1)
-	h.h = r.Int(2)
-	h.barWidth = r.Int(3)
+	h.w = r.Int()
+	h.h = r.Int()
+	h.barWidth = r.Int()
 	return h, nil
 }
 

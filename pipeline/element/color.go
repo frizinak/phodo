@@ -70,7 +70,7 @@ func (hex clrHex) Encode(w pipeline.Writer) error {
 }
 
 func (hex clrHex) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	hex.str = r.String(0)
+	hex.str = r.String()
 	var err error
 	hex.clrRGB16, err = Hex(hex.str)
 	return hex, err
@@ -102,9 +102,9 @@ func (clr clrRGB) Encode(w pipeline.Writer) error {
 }
 
 func (clr clrRGB) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	clr.r = r.Int(0)
-	clr.g = r.Int(1)
-	clr.b = r.Int(2)
+	clr.r = r.Int()
+	clr.g = r.Int()
+	clr.b = r.Int()
 	clr.clrRGB16 = RGB8(uint8(clr.r), uint8(clr.g), uint8(clr.b))
 	return clr, nil
 }
@@ -134,9 +134,9 @@ func (clr clrRGB16) Encode(w pipeline.Writer) error {
 }
 
 func (clr clrRGB16) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	clr.c[0] = uint16(r.Int(0))
-	clr.c[1] = uint16(r.Int(1))
-	clr.c[2] = uint16(r.Int(2))
+	clr.c[0] = uint16(r.Int())
+	clr.c[1] = uint16(r.Int())
+	clr.c[2] = uint16(r.Int())
 	return clr, nil
 }
 

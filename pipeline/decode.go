@@ -17,17 +17,17 @@ type Decodable interface {
 type Reader interface {
 	Name() string
 
-	String(int) string
-	StringDefault(int, string) string
+	String() string
+	StringDefault(string) string
 
-	Int(int) int
-	IntDefault(int, int) int
+	Int() int
+	IntDefault(int) int
 
-	Float(int) float64
-	FloatDefault(int, float64) float64
+	Float() float64
+	FloatDefault(float64) float64
 
-	Element(int) (Element, error)
-	ElementDefault(int, Element) (Element, error)
+	Element() (Element, error)
+	ElementDefault(Element) (Element, error)
 
 	Len() int
 }
@@ -82,8 +82,10 @@ func Registered() []Decodable { return decodablesOrder }
 type entry struct {
 	values []*entry
 	value  string
-	err    error
-	dec    func(*entry) (Element, error)
+
+	readIndex int
+	err       error
+	dec       func(*entry) (Element, error)
 }
 
 func (e entry) Dump(depth int) string {
@@ -103,59 +105,61 @@ func (e *entry) Name() string  { return e.value }
 func (e *entry) Value() string { return e.value }
 func (e *entry) Len() int      { return len(e.values) }
 
-func (e *entry) ix(n int) *entry {
+func (e *entry) ix() *entry {
+	n := e.readIndex
 	if n >= len(e.values) {
 		return &entry{err: fmt.Errorf("'%s': read arg at index %d with length %d", e.value, n, len(e.values))}
 	}
 
+	e.readIndex++
 	return e.values[n]
 }
 
-func (e *entry) String(n int) string                     { return e.string(n, nil) }
-func (e *entry) StringDefault(n int, def string) string  { return e.string(n, &def) }
-func (e *entry) IntDefault(n int, def int) int           { return e.int(n, &def) }
-func (e *entry) Int(n int) int                           { return e.int(n, nil) }
-func (e *entry) FloatDefault(n int, def float64) float64 { return e.float(n, &def) }
-func (e *entry) Float(n int) float64                     { return e.float(n, nil) }
+func (e *entry) String() string                   { return e.string(nil) }
+func (e *entry) StringDefault(def string) string  { return e.string(&def) }
+func (e *entry) Int() int                         { return e.int(nil) }
+func (e *entry) IntDefault(def int) int           { return e.int(&def) }
+func (e *entry) Float() float64                   { return e.float(nil) }
+func (e *entry) FloatDefault(def float64) float64 { return e.float(&def) }
 
-func (e *entry) string(n int, def *string) string {
-	val := e.ix(n).value
+func (e *entry) string(def *string) string {
+	val := e.ix().value
 	if val == "" && def != nil {
 		return *def
 	}
 	return val
 }
 
-func (e *entry) int(n int, def *int) int {
-	val := e.string(n, nil)
+func (e *entry) int(def *int) int {
+	val := e.string(nil)
 	if val == "" && def != nil {
 		return *def
 	}
 	v, err := strconv.Atoi(val)
 	if err != nil && e.err == nil {
-		e.err = fmt.Errorf("arg %d for element '%s' should be an integer", n+1, e.value)
+		e.err = fmt.Errorf("arg %d for element '%s' should be an integer", e.readIndex, e.value)
 	}
 	return v
 }
 
-func (e *entry) float(n int, def *float64) float64 {
-	val := e.string(n, nil)
+func (e *entry) float(def *float64) float64 {
+	val := e.string(nil)
 	if val == "" && def != nil {
 		return *def
 	}
 	v, err := strconv.ParseFloat(val, 64)
 	if err != nil && e.err == nil {
-		e.err = fmt.Errorf("arg %d for element '%s' should be a float", n+1, e.value)
+		e.err = fmt.Errorf("arg %d for element '%s' should be a float", e.readIndex, e.value)
 	}
 	return v
 }
 
-func (e *entry) Element(n int) (Element, error) {
-	return e.ElementDefault(n, nil)
+func (e *entry) Element() (Element, error) {
+	return e.ElementDefault(nil)
 }
 
-func (e *entry) ElementDefault(n int, el Element) (Element, error) {
-	ie := e.ix(n)
+func (e *entry) ElementDefault(el Element) (Element, error) {
+	ie := e.ix()
 	if ie.err != nil {
 		if el != nil {
 			return el, nil

@@ -24,9 +24,9 @@ func (r rgbAdd) Encode(w pipeline.Writer) error {
 }
 
 func (rgb rgbAdd) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	rgb.r = r.Int(0)
-	rgb.g = r.Int(1)
-	rgb.b = r.Int(2)
+	rgb.r = r.Int()
+	rgb.g = r.Int()
+	rgb.b = r.Int()
 	return rgb, nil
 }
 
@@ -64,9 +64,9 @@ func (r rgbMul) Encode(w pipeline.Writer) error {
 }
 
 func (rgb rgbMul) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	rgb.r = r.Float(0)
-	rgb.g = r.Float(1)
-	rgb.b = r.Float(2)
+	rgb.r = r.Float()
+	rgb.g = r.Float()
+	rgb.b = r.Float()
 	return rgb, nil
 }
 

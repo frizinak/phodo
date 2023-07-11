@@ -130,9 +130,9 @@ func (res resize) Decode(r pipeline.Reader) (pipeline.Element, error) {
 		opts |= core.ResizeMax
 	}
 
-	w := r.Int(0)
-	h := r.Int(1)
-	rest := []string{r.String(2), r.String(3)}
+	w := r.Int()
+	h := r.Int()
+	rest := []string{r.String(), r.String()}
 
 	kernel := KernelBox
 	for _, r := range rest {
@@ -182,10 +182,10 @@ func (c crop) Encode(w pipeline.Writer) error {
 }
 
 func (c crop) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.x = r.Int(0)
-	c.y = r.Int(1)
-	c.w = r.Int(2)
-	c.h = r.Int(3)
+	c.x = r.Int()
+	c.y = r.Int()
+	c.w = r.Int()
+	c.h = r.Int()
 	return c, nil
 }
 

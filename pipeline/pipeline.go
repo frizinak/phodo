@@ -190,7 +190,7 @@ func (p Pipeline) Decode(r Reader) (Element, error) {
 	l := r.Len()
 	els := make([]Element, l)
 	for i := 0; i < l; i++ {
-		el, err := r.Element(i)
+		el, err := r.Element()
 		if err != nil {
 			return nil, err
 		}

@@ -71,7 +71,7 @@ func (r rotate) Encode(w pipeline.Writer) error {
 
 func (r rotate) Decode(rdr pipeline.Reader) (pipeline.Element, error) {
 	return rotate{
-		n: rdr.Int(0),
+		n: rdr.Int(),
 	}, nil
 }
 

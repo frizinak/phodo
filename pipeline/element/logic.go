@@ -39,7 +39,7 @@ func (or or) Encode(w pipeline.Writer) error {
 func (or or) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	or.list = make([]pipeline.Element, r.Len())
 	for i := 0; i < r.Len(); i++ {
-		el, err := r.Element(i)
+		el, err := r.Element()
 		if err != nil {
 			return nil, err
 		}

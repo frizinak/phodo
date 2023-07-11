@@ -64,7 +64,7 @@ func (l loader) Encode(w pipeline.Writer) error {
 }
 
 func (l loader) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	l.file = r.String(0)
+	l.file = r.String()
 	return l, nil
 }
 
@@ -128,8 +128,8 @@ func (s saver) Encode(w pipeline.Writer) error {
 }
 
 func (s saver) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	s.file = r.String(0)
-	s.q = r.IntDefault(1, 100)
+	s.file = r.String()
+	s.q = r.IntDefault(100)
 	return s, nil
 }
 

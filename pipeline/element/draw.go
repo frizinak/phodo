@@ -25,9 +25,9 @@ func (b border) Encode(w pipeline.Writer) error {
 }
 
 func (b border) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	b.width = r.Int(0)
+	b.width = r.Int()
 	const max = 1<<16 - 1
-	clr, err := r.ElementDefault(1, RGB16(max, max, max))
+	clr, err := r.ElementDefault(RGB16(max, max, max))
 	if err != nil {
 		return b, err
 	}
@@ -107,20 +107,20 @@ func (e extend) Encode(w pipeline.Writer) error {
 func (e extend) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	switch r.Len() {
 	case 1:
-		e.top = r.Int(0)
+		e.top = r.Int()
 		e.bottom = e.top
 		e.left = e.top
 		e.right = e.top
 	case 2:
-		e.top = r.Int(0)
-		e.left = r.Int(1)
+		e.top = r.Int()
+		e.left = r.Int()
 		e.bottom = e.top
 		e.right = e.left
 	case 4:
-		e.top = r.Int(0)
-		e.right = r.Int(1)
-		e.bottom = r.Int(2)
-		e.left = r.Int(3)
+		e.top = r.Int()
+		e.right = r.Int()
+		e.bottom = r.Int()
+		e.left = r.Int()
 	default:
 		return e, fmt.Errorf("invalid amount of arguments to %s()", e.Name())
 	}

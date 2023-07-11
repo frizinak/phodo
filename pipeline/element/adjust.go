@@ -36,7 +36,7 @@ func (c contrast) Encode(w pipeline.Writer) error {
 }
 
 func (c contrast) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.n = r.Float(0)
+	c.n = r.Float()
 	return c, nil
 }
 
@@ -74,7 +74,7 @@ func (b brightness) Encode(w pipeline.Writer) error {
 }
 
 func (b brightness) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	b.n = r.Float(0)
+	b.n = r.Float()
 	return b, nil
 }
 
@@ -112,7 +112,7 @@ func (g gamma) Encode(w pipeline.Writer) error {
 }
 
 func (g gamma) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	g.n = r.Float(0)
+	g.n = r.Float()
 	return g, nil
 }
 
@@ -150,7 +150,7 @@ func (s saturation) Encode(w pipeline.Writer) error {
 }
 
 func (s saturation) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	s.n = r.Float(0)
+	s.n = r.Float()
 	return s, nil
 }
 
@@ -188,7 +188,7 @@ func (b black) Encode(w pipeline.Writer) error {
 }
 
 func (b black) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	b.n = r.Float(0)
+	b.n = r.Float()
 	return b, nil
 }
 

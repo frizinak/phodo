@@ -53,17 +53,17 @@ func (p PosTransparent) Encode(w pipeline.Writer) error {
 }
 
 func (p PosTransparent) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	p.p.X = r.Int(0)
-	p.p.Y = r.Int(1)
+	p.p.X = r.Int()
+	p.p.Y = r.Int()
 
-	clr, err := r.ElementDefault(2, RGB16(0, 0, 0))
+	clr, err := r.Element()
 	if err != nil {
 		return p, err
 	}
 	p.clr = clr.(Color)
 	p._clr = p.clr.Color()
 
-	p.el, err = r.Element(3)
+	p.el, err = r.Element()
 	if err != nil {
 		return p, err
 	}
@@ -98,10 +98,10 @@ func (p Pos) Encode(w pipeline.Writer) error {
 }
 
 func (p Pos) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	p.p.X = r.Int(0)
-	p.p.Y = r.Int(1)
+	p.p.X = r.Int()
+	p.p.Y = r.Int()
 	var err error
-	p.el, err = r.Element(2)
+	p.el, err = r.Element()
 	return p, err
 }
 
@@ -151,7 +151,7 @@ func (c compose) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	l := r.Len()
 	c.items = make([]Positionable, l)
 	for i := 0; i < l; i++ {
-		el, err := r.Element(i)
+		el, err := r.Element()
 		if err != nil {
 			return nil, err
 		}

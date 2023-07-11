@@ -51,8 +51,8 @@ func (c clut) Encode(w pipeline.Writer) error {
 func (c clut) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	var err error
 
-	c.e, err = r.Element(0)
-	c.amount = r.FloatDefault(1, 1)
+	c.e, err = r.Element()
+	c.amount = r.FloatDefault(1)
 
 	if c.amount == 0 {
 		c.amount = 1

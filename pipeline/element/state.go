@@ -97,7 +97,7 @@ func (s stateElement) Encode(w pipeline.Writer) error {
 }
 
 func (s stateElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	s.name = r.String(0)
+	s.name = r.String()
 	if _, ok := gstate.l[s.name]; !ok {
 		gstate.l[s.name] = &state{}
 	}

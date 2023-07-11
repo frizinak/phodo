@@ -50,8 +50,8 @@ func (c canvas) Encode(w pipeline.Writer) error {
 }
 
 func (c canvas) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.width = r.Int(0)
-	c.height = r.Int(1)
+	c.width = r.Int()
+	c.height = r.Int()
 	return c, nil
 }
 
