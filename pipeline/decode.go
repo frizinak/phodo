@@ -26,7 +26,8 @@ type Reader interface {
 	Float(int) float64
 	FloatDefault(int, float64) float64
 
-	Element(n int) (Element, error)
+	Element(int) (Element, error)
+	ElementDefault(int, Element) (Element, error)
 
 	Len() int
 }
@@ -150,9 +151,16 @@ func (e *entry) float(n int, def *float64) float64 {
 }
 
 func (e *entry) Element(n int) (Element, error) {
+	return e.ElementDefault(n, nil)
+}
+
+func (e *entry) ElementDefault(n int, el Element) (Element, error) {
 	ie := e.ix(n)
-	if e.err != nil {
-		return nil, e.err
+	if ie.err != nil {
+		if el != nil {
+			return el, nil
+		}
+		return nil, ie.err
 	}
 	return e.dec(ie)
 }
