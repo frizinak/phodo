@@ -186,6 +186,7 @@ func (e *Encoder) Element(el Element) error {
 
 	e.mindent()
 	e.w.WriteByte(parenClose)
+	e.state.line = true
 	if !inline || !e.state.inline[e.state.depth-1] {
 		e.nl()
 	}
