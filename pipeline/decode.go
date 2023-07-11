@@ -147,11 +147,16 @@ func (e *entry) float(def *float64) float64 {
 	if val == "" && def != nil {
 		return *def
 	}
+	var div float64 = 1
+	if len(val) > 1 && val[len(val)-1] == '%' {
+		div = 100
+		val = val[:len(val)-1]
+	}
 	v, err := strconv.ParseFloat(val, 64)
 	if err != nil && e.err == nil {
 		e.err = fmt.Errorf("arg %d for element '%s' should be a float", e.readIndex, e.value)
 	}
-	return v
+	return v / div
 }
 
 func (e *entry) Element() (Element, error) {
