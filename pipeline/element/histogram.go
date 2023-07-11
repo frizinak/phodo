@@ -1,11 +1,11 @@
 package element
 
-// @TODO Border color
 // @TODO Graph base color
 
 import (
 	"fmt"
 	"image"
+	"sort"
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
@@ -22,19 +22,14 @@ func Histogram() HistogramElement {
 }
 
 type HistogramElement struct {
-	borderWidth, barWidth int
-	w, h                  int
-	output                uint8
-	ipol                  bool
+	barWidth int
+	w, h     int
+	output   uint8
+	ipol     bool
 }
 
 func (h HistogramElement) Interpolated() HistogramElement {
 	h.ipol = true
-	return h
-}
-
-func (h HistogramElement) Border(width int) HistogramElement {
-	h.borderWidth = width
 	return h
 }
 
@@ -76,19 +71,33 @@ func (HistogramElement) Name() string { return "histogram" }
 func (HistogramElement) Inline() bool { return true }
 
 func (h HistogramElement) Help() [][2]string {
-	return [][2]string{
+	help := [][2]string{
 		{
-			fmt.Sprintf("%s()", h.Name()),
-			"TODO",
+			fmt.Sprintf("%s(<type> <width> <height> <bar-width>)", h.Name()),
+			"Creates a histogram of the input image.",
+		},
+		{
+			"",
+			"<type> can be one of:",
 		},
 	}
+
+	l := make([]string, 0, len(outputName))
+	for _, o := range outputName {
+		l = append(l, o)
+	}
+	sort.Strings(l)
+	for _, t := range l {
+		help = append(help, [2]string{"", " - " + t})
+	}
+
+	return help
 }
 
 func (h HistogramElement) Encode(w pipeline.Writer) error {
 	w.PlainString(outputName[h.output])
 	w.Int(h.w)
 	w.Int(h.h)
-	w.Int(h.borderWidth)
 	w.Int(h.barWidth)
 
 	return nil
@@ -103,8 +112,7 @@ func (h HistogramElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	}
 	h.w = r.Int(1)
 	h.h = r.Int(2)
-	h.borderWidth = r.Int(3)
-	h.barWidth = r.Int(4)
+	h.barWidth = r.Int(3)
 	return h, nil
 }
 
@@ -128,13 +136,13 @@ func (h HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, 
 
 	var rgb [3][]uint32
 	if /*len(h.rgb[0]) == 0 &&*/ h.output&outputRGB != 0 {
-		rgb[0] = make([]uint32, h.w/h.barWidth-h.borderWidth)
-		rgb[1] = make([]uint32, h.w/h.barWidth-h.borderWidth)
-		rgb[2] = make([]uint32, h.w/h.barWidth-h.borderWidth)
+		rgb[0] = make([]uint32, h.w/h.barWidth)
+		rgb[1] = make([]uint32, h.w/h.barWidth)
+		rgb[2] = make([]uint32, h.w/h.barWidth)
 	}
 	var white []uint32
 	if /*len(h.v) == 0 &&*/ h.output&outputWhite != 0 {
-		white = make([]uint32, h.w/h.barWidth-h.borderWidth)
+		white = make([]uint32, h.w/h.barWidth)
 	}
 
 	rgbl := uint32(len(rgb[0]))
@@ -172,35 +180,13 @@ func (h HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, 
 	height := uint32(h.h)
 
 	img = img48.New(
-		image.Rect(0, 0, int(width)+4*h.borderWidth, int(height)+4*h.borderWidth),
+		image.Rect(0, 0, int(width), int(height)),
 	)
 
 	w := []uint16{
 		1<<16 - 1,
 		1<<16 - 1,
 		1<<16 - 1,
-	}
-
-	for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-		for i := 0; i < h.borderWidth; i++ {
-			o := (-img.Rect.Min.Y+0+i)*img.Stride + x*3
-			pix := img.Pix[o : o+3 : o+3]
-			copy(pix, w)
-			o = (img.Rect.Max.Y-1-i)*img.Stride + x*3
-			pix = img.Pix[o : o+3 : o+3]
-			copy(pix, w)
-		}
-	}
-
-	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
-		for i := 0; i < h.borderWidth; i++ {
-			o := (y-img.Rect.Min.Y)*img.Stride + (img.Rect.Min.X+0+i)*3
-			pix := img.Pix[o : o+3 : o+3]
-			copy(pix, w)
-			o = (y-img.Rect.Min.Y)*img.Stride + (img.Rect.Max.X-1-i)*3
-			pix = img.Pix[o : o+3 : o+3]
-			copy(pix, w)
-		}
 	}
 
 	var avg uint32
@@ -228,11 +214,11 @@ func (h HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, 
 			g := int(uint32(rgb[1][x]) * height / avg)
 			b := int(uint32(rgb[2][x]) * height / avg)
 			for i := 0; i < h.barWidth; i++ {
-				o_ := ((x*h.barWidth + i) + 2*h.borderWidth - img.Rect.Min.X) * 3
-				for y := 2 * h.borderWidth; y < img.Rect.Max.Y-2*h.borderWidth; y++ {
+				o_ := ((x*h.barWidth + i) - img.Rect.Min.X) * 3
+				for y := 0; y < img.Rect.Max.Y; y++ {
 					o := o_ + y*img.Stride
 					pix := img.Pix[o : o+3 : o+3]
-					val := img.Rect.Max.Y - y - h.borderWidth
+					val := img.Rect.Max.Y - y
 					if val <= r {
 						pix[0] = 1<<16 - 1
 					}
@@ -251,8 +237,8 @@ func (h HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, 
 		for x, e := range white {
 			v := int(uint32(e) * height / avg)
 			for i := 0; i < h.barWidth; i++ {
-				o_ := ((x*h.barWidth + i) + 2*h.borderWidth - img.Rect.Min.X) * 3
-				for y := img.Rect.Max.Y - 1 - 2*h.borderWidth; y >= img.Rect.Max.Y-v-2*h.borderWidth && y >= 2*h.borderWidth; y-- {
+				o_ := ((x*h.barWidth + i) - img.Rect.Min.X) * 3
+				for y := img.Rect.Max.Y - 1; y >= img.Rect.Max.Y-v && y >= 0; y-- {
 					o := o_ + y*img.Stride
 					pix := img.Pix[o : o+3 : o+3]
 					copy(pix, w)

@@ -93,7 +93,7 @@ func (p Pipeline) Name() string {
 func (p Pipeline) Help() [][2]string {
 	return [][2]string{
 		{
-			"(<element1>, <element2>, ...<elementN>)",
+			"([element1] [element2] ...[elementN])",
 			"Anonymous pipeline. Elements are executed in order and the result",
 		},
 		{
@@ -106,7 +106,7 @@ func (p Pipeline) Help() [][2]string {
 		},
 		{},
 		{
-			fmt.Sprintf("%s<name>(<element1>, <element2>, ...<elementN>)", string(NamedPrefix)),
+			fmt.Sprintf("%s<name>([element1] [element2] ...[elementN])", string(NamedPrefix)),
 			"Named pipeline. Can be referenced with .<name> or .<name>()",
 		},
 		{

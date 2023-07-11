@@ -153,7 +153,7 @@ func wresize(src, dst *img48.Img, sw, dw int, kernel draw.Kernel) {
 				g += float64(s[1]) * c.v
 				b += float64(s[2]) * c.v
 			}
-			o := (y-dst.Rect.Min.Y)*dst.Stride + x*3
+			o := (y-src.Rect.Min.Y)*dst.Stride + x*3
 			pix := dst.Pix[o : o+3 : o+3]
 			pix[0] = uint16(r)
 			pix[1] = uint16(g)

@@ -6,42 +6,68 @@ import (
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
+	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
 func NewPos(e pipeline.Element, coords image.Point) Pos {
 	return Pos{e, coords}
 }
 
-func NewPosBlackTransparent(e pipeline.Element, coords image.Point) PosBlackTransparent {
-	return PosBlackTransparent{Pos{e, coords}}
+func NewPosTransparent(e pipeline.Element, coords image.Point, trans Color) PosTransparent {
+	return PosTransparent{Pos: Pos{e, coords}, clr: trans, _clr: trans.Color()}
 }
 
 func Compose(in ...Positionable) pipeline.Element {
 	return compose{in}
 }
 
-type PosBlackTransparent struct{ Pos }
-
-func (PosBlackTransparent) Transparent(r, g, b uint16) bool {
-	return r == 0 && g == 0 && b == 0
+type PosTransparent struct {
+	Pos
+	clr  Color
+	_clr [3]uint16
 }
 
-func (PosBlackTransparent) Name() string { return "pos-alpha" }
+func (p PosTransparent) Transparent(r, g, b uint16) bool {
+	return p._clr[0] == r && p._clr[1] == g && p._clr[2] == b
+}
 
-func (p PosBlackTransparent) Help() [][2]string {
+func (PosTransparent) Name() string { return "pos-alpha" }
+
+func (p PosTransparent) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", p.Name()),
-			"TODO",
+			fmt.Sprintf("%s(<x> <y> <color> <element>)", p.Name()),
+			"Same as pos() but don't copy pixels of the specified color.",
 		},
 	}
 }
 
-func (p PosBlackTransparent) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	pos, err := p.Pos.Decode(r)
-	if err == nil {
-		p.Pos = pos.(Pos)
+func (p PosTransparent) Encode(w pipeline.Writer) error {
+	w.Int(p.p.X)
+	w.Int(p.p.Y)
+	if err := w.Element(p.clr); err != nil {
+		return err
 	}
+
+	return w.Element(p.el)
+}
+
+func (p PosTransparent) Decode(r pipeline.Reader) (pipeline.Element, error) {
+	p.p.X = r.Int(0)
+	p.p.Y = r.Int(1)
+
+	clr, err := r.ElementDefault(2, RGB16(0, 0, 0))
+	if err != nil {
+		return p, err
+	}
+	p.clr = clr.(Color)
+	p._clr = p.clr.Color()
+
+	p.el, err = r.Element(3)
+	if err != nil {
+		return p, err
+	}
+
 	return p, err
 }
 
@@ -59,8 +85,8 @@ func (Pos) Inline() bool { return true }
 func (p Pos) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", p.Name()),
-			"TODO",
+			fmt.Sprintf("%s(<x> <y> <element>)", p.Name()),
+			"Assigns an x and y coordinate to the given element.",
 		},
 	}
 }
@@ -92,8 +118,8 @@ func (c compose) Name() string { return "compose" }
 func (c compose) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", c.Name()),
-			"TODO",
+			fmt.Sprintf("%s([pos-element1] [pos-element2] ...[pos-elementN])", c.Name()),
+			"Draws the given pos-elements on the input image. See pos() below.",
 		},
 	}
 }
@@ -152,21 +178,13 @@ func (c compose) doall(ctx pipeline.Context, img *img48.Img) ([]*img48.Img, erro
 }
 
 func (c compose) do(p Positionable, src, dst *img48.Img) {
-	d := p.Point()
-	trans, _ := p.(Transparent)
-	for y := src.Rect.Min.Y; y < src.Rect.Max.Y; y++ {
-		so_ := (y - src.Rect.Min.Y) * src.Stride
-		do_ := (y + d.Y - src.Rect.Min.Y) * dst.Stride
-		for x := src.Rect.Min.X; x < src.Rect.Max.X; x++ {
-			so := so_ + (x-src.Rect.Min.X)*3
-			do := do_ + (x+d.X-src.Rect.Min.X)*3
-			p := src.Pix[so : so+3 : so+3]
-			if do < len(dst.Pix) && (trans == nil ||
-				!trans.Transparent(p[0], p[1], p[2])) {
-				copy(dst.Pix[do:do+3:do+3], p)
-			}
-		}
+	var t func(r, g, b uint16) bool
+	trans, ok := p.(Transparent)
+	if ok {
+		t = trans.Transparent
 	}
+
+	core.Draw(p.Point(), src, dst, t)
 }
 
 func (c compose) Do(ctx pipeline.Context, dst *img48.Img) (*img48.Img, error) {
@@ -177,9 +195,13 @@ func (c compose) Do(ctx pipeline.Context, dst *img48.Img) (*img48.Img, error) {
 
 	ctx.Mark(c)
 
-	// TODO make do without a dst image
+	if dst == nil {
+		return dst, pipeline.NewErrNeedImageInput(c.Name())
+	}
+
 	for i, src := range imgs {
 		c.do(c.items[i], src, dst)
 	}
+
 	return dst, nil
 }

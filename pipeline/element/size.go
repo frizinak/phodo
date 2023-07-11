@@ -101,7 +101,7 @@ func (r resize) Help() [][2]string {
 		)
 	}
 
-	d = append(d, [2]string{"", "Kernel can be one of:"})
+	d = append(d, [2]string{"", "<kernel> can be one of:"})
 	for k := range kernels {
 		d = append(d, [2]string{"", " - " + string(k)})
 	}
@@ -204,6 +204,7 @@ func (c crop) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		c.h = img.Rect.Dy()
 	}
 
-	sub := img.SubImage(image.Rect(c.x, c.y, c.x+c.w, c.y+c.h)).(*img48.Img)
-	return core.ImageCopyDiscard(sub), nil
+	c.x += img.Rect.Min.X
+	c.y += img.Rect.Min.Y
+	return img.SubImage(image.Rect(c.x, c.y, c.x+c.w, c.y+c.h)).(*img48.Img), nil
 }

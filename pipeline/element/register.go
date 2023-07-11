@@ -15,6 +15,13 @@ func init() {
 	pipeline.Register(clut{})
 
 	pipeline.Register(cpy{})
+	pipeline.Register(canvas{})
+
+	pipeline.Register(extend{})
+	pipeline.Register(border{})
+	pipeline.Register(clrHex{})
+	pipeline.Register(clrRGB{})
+	pipeline.Register(clrRGB16{})
 
 	pipeline.Register(rgbAdd{})
 	pipeline.Register(rgbMul{})
@@ -39,7 +46,7 @@ func init() {
 
 	pipeline.Register(compose{})
 	pipeline.Register(Pos{})
-	pipeline.Register(PosBlackTransparent{})
+	pipeline.Register(PosTransparent{})
 
 	pipeline.Register(HistogramElement{})
 }
