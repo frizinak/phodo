@@ -162,7 +162,7 @@ func ImageRotate(img *img48.Img, rotate int) *img48.Img {
 
 	w, h := img.Rect.Dy(), img.Rect.Dx()
 	norm := func(x, y int) (int, int) {
-		return y - img.Rect.Min.Y, x - img.Rect.Min.X
+		return img.Rect.Max.Y - 1 - y, x - img.Rect.Min.X
 	}
 
 	switch rotate {
@@ -170,7 +170,7 @@ func ImageRotate(img *img48.Img, rotate int) *img48.Img {
 	case 2:
 		w, h = h, w
 		norm = func(x, y int) (int, int) {
-			return img.Rect.Max.X - 1 - x, y - img.Rect.Min.Y
+			return img.Rect.Max.X - 1 - x, img.Rect.Max.Y - 1 - y
 		}
 	case 3:
 		norm = func(x, y int) (int, int) {
