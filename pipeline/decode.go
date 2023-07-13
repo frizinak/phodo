@@ -2,10 +2,15 @@ package pipeline
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"hash"
+	"hash/crc32"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/frizinak/phodo/img48"
 )
 
 type Decodable interface {
@@ -86,6 +91,13 @@ type entry struct {
 	readIndex int
 	err       error
 	dec       func(*entry) (Element, error)
+}
+
+func (e entry) Hash(h hash.Hash) {
+	h.Write([]byte(e.value))
+	for _, e := range e.values {
+		e.Hash(h)
+	}
 }
 
 func (e entry) Dump(depth int) string {
@@ -174,26 +186,73 @@ func (e *entry) ElementDefault(el Element) (Element, error) {
 	return e.dec(ie)
 }
 
-type NamedElements struct {
-	l []NamedElement
+type Root struct {
+	o []string
+	m map[string]NamedElement
 }
 
-func (n *NamedElements) Get(name string) (Element, bool) {
-	name = string(NamedPrefix) + name
-	for _, i := range n.l {
-		if i.Name == name {
-			return i.Element, true
-		}
+func (r *Root) Set(el NamedElement) {
+	if _, ok := r.m[el.Name]; !ok {
+		r.o = append(r.o, el.Name)
 	}
-	return nil, false
+	r.m[el.Name] = el
 }
 
-func (n *NamedElements) List() []NamedElement { return n.l }
+func (r *Root) Get(name string) (NamedElement, bool) {
+	e, ok := r.m[name]
+	return e, ok
+}
+
+func (r *Root) List() []NamedElement {
+	l := make([]NamedElement, len(r.o))
+	for i, e := range r.o {
+		l[i] = r.m[e]
+	}
+	return l
+}
+
+func NewRoot() *Root {
+	return &Root{
+		o: make([]string, 0),
+		m: make(map[string]NamedElement),
+	}
+}
 
 type NamedElement struct {
+	Hash    []byte
 	Name    string
+	Cached  bool
 	Element Element
 }
+
+type refElement struct {
+	name   string
+	lookup *Root
+	el     Element
+}
+
+func (r refElement) get() Element {
+	nel, ok := r.lookup.Get(r.name)
+	if !ok {
+		return r.el
+	}
+
+	return nel.Element
+}
+
+func (r refElement) Name() string { return r.name }
+
+func (r refElement) Encode(w Writer) error {
+	el := r.get()
+	if enc, ok := el.(Encodable); ok {
+		return enc.Encode(w)
+	}
+	return fmt.Errorf("%T is not encodable", el)
+}
+
+func (r refElement) Do(ctx Context, img *img48.Img) (*img48.Img, error) { return r.get().Do(ctx, img) }
+
+var _ Encodable = refElement{}
 
 type Decoder struct {
 	r     *errReader
@@ -210,26 +269,33 @@ func NewDecoder(r io.Reader, vars map[string]string) *Decoder {
 	return &Decoder{r: rr, vars: vars}
 }
 
-func (d *Decoder) Decode() (*NamedElements, error) {
+func (d *Decoder) Decode(cache *Root) (*Root, error) {
 	if err := d.decode(d.vars); err != nil {
 		return nil, err
 	}
 
+	elookup := make(map[string]*entry)
 	lookup := make(map[string]Element)
 
-	var dec func(e *entry) (Element, error)
-	dec = func(e *entry) (Element, error) {
+	root := NewRoot()
+
+	var dec func(h hash.Hash, e *entry) (Element, error)
+	dec = func(h hash.Hash, e *entry) (Element, error) {
 		if e.err != nil {
 			return nil, e.err
 		}
+
+		e.Hash(h)
 
 		name := e.value
 		id := name
 		named := name[0] == NamedPrefix
 		isRef := false
 		if named {
-			isRef = len(e.values) == 0
-			name = name[1:]
+			_, isRef = lookup[name]
+			if isRef && len(e.values) != 0 {
+				return nil, fmt.Errorf("'%s' is already defined", e.value)
+			}
 			id = anonPipeline
 		}
 
@@ -238,17 +304,27 @@ func (d *Decoder) Decode() (*NamedElements, error) {
 			var err error
 			if !ok {
 				err = fmt.Errorf("could not find definition for named pipeline '%s'", name)
+				return el, err
 			}
 
-			return el, err
+			elookup[name].Hash(h)
+
+			el = refElement{name: name, el: el, lookup: root}
+			return el, nil
 		}
 
 		skel := decodables[id]
 		if skel == nil {
 			return nil, fmt.Errorf("'%s' is not a defined element", name)
 		}
-		e.dec = dec
+		e.dec = func(e *entry) (Element, error) {
+			el, err := dec(h, e)
+			return el, err
+		}
 		el, err := skel.Decode(e)
+		if err != nil {
+			return el, err
+		}
 
 		if e.err != nil {
 			err = e.err
@@ -259,22 +335,32 @@ func (d *Decoder) Decode() (*NamedElements, error) {
 				return el, fmt.Errorf("duplicate entry for named pipeline '%s'", name)
 			}
 			lookup[name] = el
+			elookup[name] = e
 		}
 
 		return el, err
 	}
 
-	l := &NamedElements{}
-	l.l = make([]NamedElement, len(d.state.values))
-	for i, e := range d.state.values {
-		el, err := dec(e)
+	h := crc32.NewIEEE()
+	for _, e := range d.state.values {
+		h.Reset()
+		el, err := dec(h, e)
 		if err != nil {
-			return l, err
+			return root, err
 		}
-		l.l[i] = NamedElement{Name: e.Name(), Element: el}
+		sum := h.Sum(nil)
+		if cache != nil {
+			if c, ok := cache.Get(e.value); ok && bytes.Equal(c.Hash, sum) {
+				c.Cached = true
+				root.Set(c)
+				continue
+			}
+		}
+
+		root.Set(NamedElement{Hash: sum, Cached: false, Name: e.Name(), Element: el})
 	}
 
-	return l, nil
+	return root, nil
 }
 
 func (d *Decoder) decode(vars map[string]string) error {

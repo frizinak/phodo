@@ -38,13 +38,13 @@ func handleDo(c Conf, args []string) error {
 		return fmt.Errorf("failed to open pipeline scipt: %s: '%w'", file, err)
 	}
 	r := pipeline.NewDecoder(f, vars)
-	res, err := r.Decode()
+	res, err := r.Decode(nil)
 	f.Close()
 	if err != nil {
 		return err
 	}
 
-	pl, ok := res.Get(pipe)
+	pl, ok := res.Get(string(pipeline.NamedPrefix) + pipe)
 	if !ok {
 		list := res.List()
 		l := make([]string, len(list))
@@ -59,7 +59,7 @@ func handleDo(c Conf, args []string) error {
 	}
 
 	ctx := pipeline.NewContext(c.Verbose, context.Background())
-	_, err = pl.Do(ctx, nil)
+	_, err = pl.Element.Do(ctx, nil)
 
 	return err
 }
