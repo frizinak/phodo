@@ -48,6 +48,17 @@ type Exif struct {
 	lookup Lookup
 }
 
+func (e *Exif) Clone() *Exif {
+	if e == nil {
+		return nil
+	}
+
+	return &Exif{
+		Header: e.Header,
+		IFDSet: e.IFDSet.Clone(),
+	}
+}
+
 func (exif *Exif) Find(path ...uint16) *Entry {
 	if exif == nil {
 		return nil
@@ -76,6 +87,19 @@ type IFD struct {
 	List []*Entry
 }
 
+func (ifd *IFD) Clone() *IFD {
+	if ifd == nil {
+		return nil
+	}
+
+	n := &IFD{make([]*Entry, len(ifd.List))}
+	for i, e := range ifd.List {
+		n.List[i] = e.Clone()
+	}
+
+	return n
+}
+
 func (ifd *IFD) Delete(path ...uint16) {
 	if ifd == nil || len(path) == 0 {
 		return
@@ -97,6 +121,19 @@ func (ifd *IFD) Delete(path ...uint16) {
 type IFDSet struct {
 	ByteOrder binary.ByteOrder
 	IFDs      []*IFD
+}
+
+func (set *IFDSet) Clone() *IFDSet {
+	if set == nil {
+		return nil
+	}
+	n := newIFDSet()
+	n.ByteOrder = set.ByteOrder
+	for _, ifd := range set.IFDs {
+		n.IFDs = append(n.IFDs, ifd.Clone())
+	}
+
+	return n
 }
 
 func (set *IFDSet) Ensure(page int, tag, typ uint16) *Entry {
@@ -139,6 +176,21 @@ type Entry struct {
 	Data []byte
 
 	val Value
+}
+
+func (e *Entry) Clone() *Entry {
+	d := make([]byte, len(e.Data))
+	copy(d, e.Data)
+	n := &Entry{
+		ByteOrder: e.ByteOrder,
+		IFDSet:    e.IFDSet.Clone(),
+		Tag:       e.Tag,
+		Typ:       e.Typ,
+		Num:       e.Num,
+		Data:      d,
+	}
+
+	return n
 }
 
 func (e *Entry) SetString(str string) *Entry {

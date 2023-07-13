@@ -25,7 +25,7 @@ import (
 // ImageCopy does not discard excess pixels created by a .SubImage call.
 func ImageCopy(img *img48.Img) *img48.Img {
 	i := &img48.Img{
-		Exif:   img.Exif,
+		Exif:   img.Exif.Clone(),
 		Pix:    make([]uint16, len(img.Pix)),
 		Stride: img.Stride,
 		Rect:   img.Rect,
@@ -38,7 +38,7 @@ func ImageCopy(img *img48.Img) *img48.Img {
 // ImageCopyDiscard copies the image to an appropriately sized one.
 func ImageCopyDiscard(img *img48.Img) *img48.Img {
 	i := img48.New(image.Rect(0, 0, img.Rect.Dx(), img.Rect.Dy()))
-	i.Exif = img.Exif
+	i.Exif = img.Exif.Clone()
 
 	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
 		so := (y - img.Rect.Min.Y) * img.Stride
