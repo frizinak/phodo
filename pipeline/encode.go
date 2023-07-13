@@ -93,7 +93,6 @@ const (
 	parenOpen  = '('
 	parenClose = ')'
 	nl         = '\n'
-	debug      = '+'
 )
 
 func (e *Encoder) String(str string) {
