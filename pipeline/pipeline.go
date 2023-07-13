@@ -148,6 +148,10 @@ func (p *Pipeline) Do(ctx Context, img *img48.Img) (*img48.Img, error) {
 		p.result.img = img
 	}
 
+	if p.name != "" {
+		ctx.Mark(p, p.Name())
+	}
+
 	for _, e := range p.line {
 		if err := ctx.Err(); err != nil {
 			p.result.err = err
