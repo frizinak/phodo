@@ -5,6 +5,7 @@ import (
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
+	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
 func init() {
@@ -17,36 +18,41 @@ func StateSave(name string) pipeline.Element       { return gstate.Save(name) }
 func StateSaveNoCopy(name string) pipeline.Element { return gstate.SaveNoCopy(name) }
 func StateLoad(name string) pipeline.Element       { return gstate.Load(name) }
 func StateDiscard(name string) pipeline.Element    { return gstate.Discard(name) }
+func StateClear()                                  { gstate.Clear() }
 
-var gstate = &stateContainer{make(map[string]*state)}
-
-type stateContainer struct {
+type StateContainer struct {
 	l map[string]*state
 }
 
-func (s *stateContainer) Save(name string) pipeline.Element {
+func NewStateContainer() *StateContainer {
+	return &StateContainer{make(map[string]*state)}
+}
+
+func (s *StateContainer) Save(name string) pipeline.Element {
 	return pipeline.New(s.store(name), Copy())
 }
 
-func (s *stateContainer) SaveNoCopy(name string) pipeline.Element {
+func (s *StateContainer) SaveNoCopy(name string) pipeline.Element {
 	return s.store(name)
 }
 
-func (s *stateContainer) store(name string) pipeline.Element {
+func (s *StateContainer) store(name string) pipeline.Element {
 	state := &state{}
 	s.l[name] = state
 	return stateElement{name, stateStore, state}
 }
 
-func (s *stateContainer) Load(name string) pipeline.Element {
+func (s *StateContainer) Load(name string) pipeline.Element {
 	state := s.l[name]
 	return stateElement{name, stateRestore, state}
 }
 
-func (s *stateContainer) Discard(name string) pipeline.Element {
+func (s *StateContainer) Discard(name string) pipeline.Element {
 	state := s.l[name]
 	return stateElement{name, stateDiscard, state}
 }
+
+func (s *StateContainer) Clear() { s.l = make(map[string]*state) }
 
 const (
 	stateStore uint8 = iota
@@ -117,10 +123,10 @@ func (s stateElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, erro
 
 	switch s.typ {
 	case stateStore:
-		s.s.img = img
+		s.s.img = core.ImageCopy(img)
 		return img, nil
 	case stateRestore:
-		return s.s.img, nil
+		return core.ImageCopy(s.s.img), nil
 	case stateDiscard:
 		s.s.img = nil
 		return img, nil

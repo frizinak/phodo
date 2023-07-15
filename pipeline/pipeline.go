@@ -45,23 +45,21 @@ type Pipeline struct {
 	name   string
 	m      sync.Mutex
 	line   []Element
-	frozen bool
 	result struct {
 		img *img48.Img
 		err error
 	}
 }
 
-func Repeatable(elements ...Element) *Pipeline { return mk(true, elements) }
-func New(elements ...Element) *Pipeline        { return mk(false, elements) }
+func New(elements ...Element) *Pipeline { return mk(elements) }
 
 func Tee(elements ...Element) Element {
-	pipe := mk(false, elements)
+	pipe := mk(elements)
 	return teeElement{p: pipe}
 }
 
-func mk(frozen bool, els []Element) *Pipeline {
-	return &Pipeline{line: els, frozen: frozen}
+func mk(els []Element) *Pipeline {
+	return &Pipeline{line: els}
 }
 
 func (p *Pipeline) Add(e Element) *Pipeline {
@@ -98,40 +96,16 @@ func (p Pipeline) Help() [][2]string {
 		},
 		{
 			"",
-			"of each is being passed to the next. Elements of anonymous",
-		},
-		{
-			"",
-			"pipelines are never executed more than once.",
+			"of each is being passed to the next.",
 		},
 		{},
 		{
 			fmt.Sprintf("%s<name>([element1] [element2] ...[elementN])", string(NamedPrefix)),
-			"Named pipeline. Can be referenced with .<name> or .<name>()",
+			"Named pipeline. Can be referenced with .<name> or .<name>().",
 		},
 		{
 			"",
-			"and as opposed to anonymous pipelines will be executed each time",
-		},
-		{
-			"",
-			"they are encountered.",
-		},
-		{
-			"",
-			"e.g: `.film-simulation(clut((load-file(\"clut.png\"))))`",
-		},
-		{
-			"",
-			"Note the extra anonymous pipeline wrapping the `load-file` call",
-		},
-		{
-			"",
-			"resulting in only a single file load no matter how often",
-		},
-		{
-			"",
-			"is used, while the clut is applied each time.",
+			"e.g: `.film-simulation(clut(cache(load-file(\"clut.png\"))))`",
 		},
 	}
 }
@@ -140,11 +114,7 @@ func (p *Pipeline) Do(ctx Context, img *img48.Img) (*img48.Img, error) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	if p.result.err != nil && !p.frozen {
-		return p.result.img, p.result.err
-	}
-
-	if img != nil && (p.frozen || p.result.img == nil) {
+	if img != nil {
 		p.result.img = img
 	}
 
@@ -161,9 +131,6 @@ func (p *Pipeline) Do(ctx Context, img *img48.Img) (*img48.Img, error) {
 		if p.result.err != nil {
 			break
 		}
-	}
-	if !p.frozen {
-		p.line = p.line[:0]
 	}
 
 	ctx.Mark(nil)
@@ -185,9 +152,7 @@ func (p *Pipeline) Encode(w Writer) error {
 
 func (p Pipeline) Decode(r Reader) (Element, error) {
 	name := r.Name()
-	var rep bool
 	if name[0] == NamedPrefix {
-		rep = true
 		name = name[1:]
 	}
 
@@ -201,7 +166,7 @@ func (p Pipeline) Decode(r Reader) (Element, error) {
 		els[i] = el
 	}
 
-	pipe := mk(rep, els)
+	pipe := mk(els)
 	pipe.SetName(name)
 	return pipe, nil
 

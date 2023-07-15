@@ -5,6 +5,9 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
+var gstate = NewStateContainer()
+var gcache = NewCacheContainer(100)
+
 func init() {
 	pipeline.Register(saver{})
 	pipeline.Register(loader{})
@@ -29,6 +32,8 @@ func init() {
 	pipeline.Register(stateElement{typ: stateStore})
 	pipeline.Register(stateElement{typ: stateRestore})
 	pipeline.Register(stateElement{typ: stateDiscard})
+
+	pipeline.Register(cache{})
 
 	pipeline.Register(or{})
 

@@ -36,7 +36,7 @@ func (c cpy) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(c.Name())
 	}
 
-	return core.ImageCopy(img), nil
+	return core.ImageCopyDiscard(img), nil
 }
 
 type canvas struct{ width, height int }

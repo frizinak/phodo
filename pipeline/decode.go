@@ -9,8 +9,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-
-	"github.com/frizinak/phodo/img48"
 )
 
 type Decodable interface {
@@ -21,6 +19,7 @@ type Decodable interface {
 
 type Reader interface {
 	Name() string
+	Hash() Hash
 
 	String() string
 	StringDefault(string) string
@@ -84,19 +83,25 @@ func Register(s Decodable) {
 
 func Registered() []Decodable { return decodablesOrder }
 
+type Hash interface {
+	Value() []byte
+}
+
 type entry struct {
 	values []*entry
 	value  string
+
+	sum Hash
 
 	readIndex int
 	err       error
 	dec       func(*entry) (Element, error)
 }
 
-func (e entry) Hash(h hash.Hash) {
+func (e *entry) calcHash(h hash.Hash) {
 	h.Write([]byte(e.value))
 	for _, e := range e.values {
-		e.Hash(h)
+		e.calcHash(h)
 	}
 }
 
@@ -126,6 +131,8 @@ func (e *entry) ix() *entry {
 	e.readIndex++
 	return e.values[n]
 }
+
+func (e *entry) Hash() Hash { return e.sum }
 
 func (e *entry) String() string                   { return e.string(nil) }
 func (e *entry) StringDefault(def string) string  { return e.string(&def) }
@@ -225,35 +232,6 @@ type NamedElement struct {
 	Element Element
 }
 
-type refElement struct {
-	name   string
-	lookup *Root
-	el     Element
-}
-
-func (r refElement) get() Element {
-	nel, ok := r.lookup.Get(r.name)
-	if !ok {
-		return r.el
-	}
-
-	return nel.Element
-}
-
-func (r refElement) Name() string { return r.name }
-
-func (r refElement) Encode(w Writer) error {
-	el := r.get()
-	if enc, ok := el.(Encodable); ok {
-		return enc.Encode(w)
-	}
-	return fmt.Errorf("%T is not encodable", el)
-}
-
-func (r refElement) Do(ctx Context, img *img48.Img) (*img48.Img, error) { return r.get().Do(ctx, img) }
-
-var _ Encodable = refElement{}
-
 type Decoder struct {
 	r     *errReader
 	vars  map[string]string
@@ -269,6 +247,28 @@ func NewDecoder(r io.Reader, vars map[string]string) *Decoder {
 	return &Decoder{r: rr, vars: vars}
 }
 
+type propagator struct {
+	c []*propagator
+	d []byte
+}
+
+func (p *propagator) Value() []byte { return p.d }
+
+func (p *propagator) set(d []byte) { p.d = d }
+func (p *propagator) add(d []byte) { p.d = append(p.d, d...) }
+func (p *propagator) new() *propagator {
+	n := &propagator{}
+	p.c = append(p.c, n)
+	return n
+}
+
+func (p *propagator) propagate() {
+	for _, child := range p.c {
+		child.propagate()
+		p.d = append(p.d, child.d...)
+	}
+}
+
 func (d *Decoder) Decode(cache *Root) (*Root, error) {
 	if err := d.decode(d.vars); err != nil {
 		return nil, err
@@ -279,13 +279,15 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 
 	root := NewRoot()
 
-	var dec func(h hash.Hash, e *entry) (Element, error)
-	dec = func(h hash.Hash, e *entry) (Element, error) {
+	var dec func(h hash.Hash, p *propagator, e *entry) (Element, error)
+	dec = func(h hash.Hash, p *propagator, e *entry) (Element, error) {
 		if e.err != nil {
 			return nil, e.err
 		}
 
-		e.Hash(h)
+		e.calcHash(h)
+		e.sum = p
+		p.set(h.Sum(nil))
 
 		name := e.value
 		id := name
@@ -296,6 +298,7 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 			if isRef && len(e.values) != 0 {
 				return nil, fmt.Errorf("'%s' is already defined", e.value)
 			}
+			// TODO show warning if len(e.values) == 0?
 			id = anonPipeline
 		}
 
@@ -307,9 +310,8 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 				return el, err
 			}
 
-			elookup[name].Hash(h)
-
-			el = refElement{name: name, el: el, lookup: root}
+			elookup[name].calcHash(h)
+			p.add(h.Sum(nil))
 			return el, nil
 		}
 
@@ -317,8 +319,10 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 		if skel == nil {
 			return nil, fmt.Errorf("'%s' is not a defined element", name)
 		}
+
+		sh := crc32.NewIEEE()
 		e.dec = func(e *entry) (Element, error) {
-			el, err := dec(h, e)
+			el, err := dec(sh, p.new(), e)
 			return el, err
 		}
 		el, err := skel.Decode(e)
@@ -327,7 +331,7 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 		}
 
 		if e.err != nil {
-			err = e.err
+			return el, e.err
 		}
 
 		if named && !isRef {
@@ -343,12 +347,13 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 
 	h := crc32.NewIEEE()
 	for _, e := range d.state.values {
-		h.Reset()
-		el, err := dec(h, e)
+		rp := &propagator{}
+		el, err := dec(h, rp, e)
 		if err != nil {
 			return root, err
 		}
-		sum := h.Sum(nil)
+		rp.propagate()
+		sum := rp.Value()
 		if cache != nil {
 			if c, ok := cache.Get(e.value); ok && bytes.Equal(c.Hash, sum) {
 				c.Cached = true
