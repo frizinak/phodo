@@ -46,13 +46,13 @@ func (s *SimpleContext) Mark(e Element, info ...string) {
 		return
 	}
 	if len(i) == 0 {
-		fmt.Fprintf(os.Stderr, "%-60s %4dms\n", p, time.Since(t).Milliseconds())
+		fmt.Fprintf(os.Stderr, "%-72s %4dms\n", p, time.Since(t).Milliseconds())
 		return
 	}
 
 	fmt.Fprintf(
 		os.Stderr,
-		"%-30s %-29s %4dms \n",
+		"%-25s %-46s %4dms \n",
 		p,
 		strings.Join(i, " "),
 		time.Since(t).Milliseconds(),
@@ -62,7 +62,7 @@ func (s *SimpleContext) Mark(e Element, info ...string) {
 func (s *SimpleContext) Warn(e Element, msg ...string) {
 	fmt.Fprintf(
 		os.Stderr,
-		"[WARN] %-30s  %-29s\n",
+		"[WARN] %-25s  %-29s\n",
 		fmt.Sprintf("%T", e),
 		strings.Join(msg, " "),
 	)

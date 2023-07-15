@@ -24,7 +24,7 @@ func NewRoot(output io.Writer) *Set {
 	return New(flag.CommandLine, output)
 }
 
-func (f *Set) Define(cb func(*flag.FlagSet) HelpCB) *Set {
+func (f *Set) Define(cb func(*flag.FlagSet) func(io.Writer)) *Set {
 	helper := cb(f.f)
 	f.f.Usage = func() {
 		if helper == nil {
@@ -32,16 +32,7 @@ func (f *Set) Define(cb func(*flag.FlagSet) HelpCB) *Set {
 			f.f.PrintDefaults()
 			return
 		}
-		h := &Help{l: make([]string, 0, 1)}
-		cb := helper(h)
-		for _, l := range h.l {
-			fmt.Fprintln(f.w, l)
-		}
-		if cb != nil {
-			cb(f.w)
-			return
-		}
-		f.f.PrintDefaults()
+		helper(f.w)
 	}
 
 	return f
@@ -104,15 +95,5 @@ func (f *Set) parse(args, trail []string) (*Set, []string) {
 func (f *Set) Do() error {
 	return f.handler(f, f.Args())
 }
-
-type Help struct {
-	l []string
-}
-
-func (h *Help) Add(line string) {
-	h.l = append(h.l, line)
-}
-
-type HelpCB func(h *Help) func(io.Writer)
 
 type Handler func(f *Set, args []string) error
