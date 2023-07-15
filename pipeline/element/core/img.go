@@ -22,7 +22,8 @@ import (
 	_ "golang.org/x/image/webp"
 )
 
-// ImageCopy does not discard excess pixels created by a .SubImage call.
+// ImageCopy copies the image but does not discard excess pixels created by
+// a .SubImage call.
 func ImageCopy(img *img48.Img) *img48.Img {
 	i := &img48.Img{
 		Exif:   img.Exif.Clone(),
@@ -35,8 +36,22 @@ func ImageCopy(img *img48.Img) *img48.Img {
 	return i
 }
 
-// ImageCopyDiscard copies the image to an appropriately sized one.
+// ImageDiscard discards excess pixels if necessary, no copy is executed
+// otherwise.
+func ImageDiscard(img *img48.Img) *img48.Img {
+	if len(img.Pix) == 3*img.Rect.Dx()*img.Rect.Dy() {
+		return img
+	}
+
+	return ImageCopyDiscard(img)
+}
+
+// ImageCopyDiscard copies the image to an appropriately sized one. Ensuring
+// the underlying pixel array is the correct size.
 func ImageCopyDiscard(img *img48.Img) *img48.Img {
+	if len(img.Pix) == 3*img.Rect.Dx()*img.Rect.Dy() {
+		return ImageCopy(img)
+	}
 	i := img48.New(image.Rect(0, 0, img.Rect.Dx(), img.Rect.Dy()))
 	i.Exif = img.Exif.Clone()
 
