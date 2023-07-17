@@ -23,7 +23,7 @@ type Writer interface {
 
 	Number(Number)
 
-	Float(float64) // todo rename to Float
+	Float(float64)
 
 	Element(Element) error
 }

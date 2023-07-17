@@ -20,8 +20,8 @@ func (or or) Name() string { return "or" }
 func (or or) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", or.Name()),
-			"TODO",
+			fmt.Sprintf("%s([element1] [element2] ...[elementN])", or.Name()),
+			"Executes all given elements in order until one succeeds.",
 		},
 	}
 }

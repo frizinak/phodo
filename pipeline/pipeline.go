@@ -178,11 +178,11 @@ type teeElement struct {
 
 func (teeElement) Name() string { return "tee" }
 
-func (teeElement) Help() [][2]string {
+func (t teeElement) Help() [][2]string {
 	return [][2]string{
 		{
-			"tee()",
-			"TODO",
+			fmt.Sprintf("%s([element1] [element2] ...[elementN]", t.Name()),
+			"Creates a new pipeline branching of the main pipeline.",
 		},
 	}
 }

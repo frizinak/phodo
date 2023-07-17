@@ -89,12 +89,31 @@ func (s stateElement) Name() string {
 func (stateElement) Inline() bool { return true }
 
 func (s stateElement) Help() [][2]string {
-	return [][2]string{
-		{
-			fmt.Sprintf("%s()", s.Name()),
-			"TODO",
-		},
+	switch s.typ {
+	case stateStore:
+		return [][2]string{
+			{
+				fmt.Sprintf("%s(<name>)", s.Name()),
+				fmt.Sprintf("Stores the current image for later retrieval using '%s(<name>)'.", stateName[stateRestore]),
+			},
+		}
+	case stateRestore:
+		return [][2]string{
+			{
+				fmt.Sprintf("%s(<name>)", s.Name()),
+				fmt.Sprintf("Restores an image previously saved using '%s(<name>)'.", stateName[stateStore]),
+			},
+		}
+	case stateDiscard:
+		return [][2]string{
+			{
+				fmt.Sprintf("%s(<name>)", s.Name()),
+				fmt.Sprintf("Deletes an image previously saved using '%s(<name>)'.", stateName[stateStore]),
+			},
+		}
 	}
+
+	return nil
 }
 
 func (s stateElement) Encode(w pipeline.Writer) error {

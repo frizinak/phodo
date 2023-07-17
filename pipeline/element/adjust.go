@@ -24,8 +24,8 @@ func (c contrast) Inline() bool { return true }
 func (c contrast) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", c.Name()),
-			"TODO",
+			fmt.Sprintf("%s(<factor>)", c.Name()),
+			"Adjusts the contrast by the given <factor>.",
 		},
 	}
 }
@@ -67,8 +67,8 @@ func (b brightness) Inline() bool { return true }
 func (b brightness) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", b.Name()),
-			"TODO",
+			fmt.Sprintf("%s(<factor>)", b.Name()),
+			"Adjusts the brightness by the given <factor>.",
 		},
 	}
 }
@@ -110,8 +110,8 @@ func (g gamma) Inline() bool { return true }
 func (g gamma) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", g.Name()),
-			"TODO",
+			fmt.Sprintf("%s(<factor>)", g.Name()),
+			"Adjusts the gamma by the given <factor>.",
 		},
 	}
 }
@@ -153,8 +153,8 @@ func (s saturation) Inline() bool { return true }
 func (s saturation) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", s.Name()),
-			"TODO",
+			fmt.Sprintf("%s(<factor>)", s.Name()),
+			"Adjusts the saturation by the given <factor>",
 		},
 	}
 }
@@ -196,8 +196,8 @@ func (b black) Inline() bool { return true }
 func (b black) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", b.Name()),
-			"TODO",
+			fmt.Sprintf("%s(<factor>)", b.Name()),
+			"Adjusts the black point by the given <factor>.",
 		},
 	}
 }

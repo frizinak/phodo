@@ -46,8 +46,12 @@ func (rgb rgbAdd) Decode(r pipeline.Reader) (pipeline.Element, error) {
 func (r rgbAdd) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", r.Name()),
-			"TODO",
+			fmt.Sprintf("%s(<r> <g> <b>)", r.Name()),
+			"Adjusts rgb components of the current image by adding the given",
+		},
+		{
+			"",
+			"0-65535 <r> <g> and <b> values.",
 		},
 	}
 }
@@ -101,8 +105,12 @@ func (rgb rgbMul) Decode(r pipeline.Reader) (pipeline.Element, error) {
 func (r rgbMul) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s()", r.Name()),
-			"TODO",
+			fmt.Sprintf("%s(<r> <g> <b>)", r.Name()),
+			"Adjusts rgb components of the current image by multiplying them",
+		},
+		{
+			"",
+			"with the given <r> <g> and <b> multipliers.",
 		},
 	}
 }
