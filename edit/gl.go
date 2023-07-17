@@ -3,6 +3,7 @@ package edit
 import (
 	"fmt"
 	"image"
+	"math"
 	"runtime"
 	"strings"
 	"sync"
@@ -189,7 +190,47 @@ type Viewer struct {
 
 	proj mgl32.Mat4
 
-	onkey func(rune)
+	cursor struct {
+		x, y float64
+		down bool
+	}
+
+	pos struct {
+		x, y       int
+		maxX, maxY int
+		scale      float64
+	}
+
+	onkey   func(rune)
+	onclick func(x, y int)
+}
+
+func (v *Viewer) onCursor(w *glfw.Window, x, y float64) {
+	v.cursor.x, v.cursor.y = x, y
+	v.reportCursor()
+}
+
+func (v *Viewer) onClick(w *glfw.Window, btn glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
+	v.cursor.down = btn == glfw.MouseButton1 && action == glfw.Press
+	if btn != glfw.MouseButton1 || action != glfw.Press || v.pos.scale == 0 {
+		return
+	}
+
+	v.reportCursor()
+}
+
+func (v *Viewer) reportCursor() {
+	if !v.cursor.down || v.pos.scale == 0 {
+		return
+	}
+
+	rx := v.pos.scale * (v.cursor.x - float64(v.pos.x))
+	ry := v.pos.scale * (v.cursor.y - float64(v.pos.y))
+	x := int(math.Round(rx))
+	y := int(math.Round(ry))
+	if x > 0 && y > 0 && x <= v.pos.maxX && y < v.pos.maxY {
+		v.onclick(x, y)
+	}
 }
 
 func (v *Viewer) onText(w *glfw.Window, char rune) {
@@ -232,6 +273,10 @@ func (v *Viewer) run() error {
 	v.window.SetFramebufferSizeCallback(v.onResize)
 	v.window.SetPosCallback(v.onPos)
 	v.window.SetCharCallback(v.onText)
+	if v.onclick != nil {
+		v.window.SetCursorPosCallback(v.onCursor)
+		v.window.SetMouseButtonCallback(v.onClick)
+	}
 
 	w, h := v.window.GetFramebufferSize()
 	v.onResize(v.window, w, h)
@@ -364,9 +409,15 @@ func (v *Viewer) run() error {
 		}
 
 		if recenter {
-			tx := v.realWidth/2 - lastBounds.X/2
-			ty := v.realHeight/2 - lastBounds.Y/2
-			model = mgl32.Translate3D(float32(tx), float32(ty), 0)
+			v.pos.x = v.realWidth/2 - lastBounds.X/2
+			v.pos.y = v.realHeight/2 - lastBounds.Y/2
+			v.pos.scale = 0
+			if bounds.X != 0 && v.img != nil {
+				v.pos.maxX = v.img.Rect.Dx()
+				v.pos.maxY = v.img.Rect.Dy()
+				v.pos.scale = float64(v.pos.maxX) / float64(bounds.X)
+			}
+			model = mgl32.Translate3D(float32(v.pos.x), float32(v.pos.y), 0)
 			gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 		}
 

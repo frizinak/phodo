@@ -11,13 +11,14 @@ func (v *Viewer) Set(img *img48.Img) {
 	v.sem.Unlock()
 }
 
-func (v *Viewer) Run(exit <-chan struct{}, onkey func(rune)) error {
+func (v *Viewer) Run(exit <-chan struct{}, onkey func(rune), onclick func(x, y int)) error {
 	go func() {
 		<-exit
 		v.window.SetShouldClose(true)
 	}()
 
 	v.onkey = onkey
+	v.onclick = onclick
 
 	return v.run()
 }

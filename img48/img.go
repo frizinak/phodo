@@ -43,6 +43,9 @@ func (i *Img) Set(x, y int, c color.Color) {
 func (i Img) ColorModel() color.Model  { return color.RGBA64Model }
 func (i *Img) Bounds() image.Rectangle { return i.Rect }
 func (i *Img) At(x, y int) color.Color {
+	if !(image.Point{x, y}.In(i.Rect)) {
+		return color.NRGBA{}
+	}
 	o := (y-i.Rect.Min.Y)*i.Stride + (x-i.Rect.Min.X)*3
 	pix := i.Pix[o : o+3 : o+3]
 	return Color{pix[0], pix[1], pix[2]}

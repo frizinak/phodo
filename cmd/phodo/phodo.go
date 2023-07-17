@@ -12,6 +12,7 @@ import (
 
 	"github.com/frizinak/phodo/edit"
 	"github.com/frizinak/phodo/flags"
+	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
 
 	"github.com/frizinak/phodo/pipeline/element"
@@ -65,6 +66,7 @@ func handleEdit(c Conf, args []string) error {
 		element.Once(element.LoadFile(input)),
 	)
 
+	var img *img48.Img
 	v := &edit.Viewer{}
 	quit := make(chan struct{})
 	onkey := func(r rune) {
@@ -75,10 +77,40 @@ func handleEdit(c Conf, args []string) error {
 		}
 	}
 
+	onclick := func(x, y int) {
+		if img == nil {
+			return
+		}
+		r, g, b, _ := img.At(x, y).RGBA()
+		fmt.Fprintf(
+			os.Stderr,
+			`click x=%d y=%d
+    rgb16(%5d, %5d, %5d)
+    rgb8 (%5d, %5d, %5d)
+    hex16 #%04x%04x%04x
+    hex8  #%02x%02x%02x
+`,
+			x,
+			y,
+			r,
+			g,
+			b,
+			r>>8,
+			g>>8,
+			b>>8,
+			r,
+			g,
+			b,
+			r>>8,
+			g>>8,
+			b>>8,
+		)
+	}
+
 	var gerr error
 	done := make(chan struct{})
 	go func() {
-		if err := v.Run(quit, onkey); err != nil {
+		if err := v.Run(quit, onkey, onclick); err != nil {
 			gerr = err
 		}
 		done <- struct{}{}
@@ -135,7 +167,8 @@ outer:
 			continue
 		}
 
-		v.Set(core.ImageDiscard(out))
+		img = core.ImageDiscard(out)
+		v.Set(img)
 		if c.Verbose {
 			fmt.Fprintf(os.Stderr, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", time.Since(s).Round(time.Millisecond))
 		}
