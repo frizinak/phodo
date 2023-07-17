@@ -10,11 +10,11 @@ import (
 )
 
 func NewPos(e pipeline.Element, coords image.Point) Pos {
-	return Pos{e, coords}
+	return Pos{e, Point{X: pipeline.PlainNumber(coords.X), Y: pipeline.PlainNumber(coords.Y)}}
 }
 
 func NewPosTransparent(e pipeline.Element, coords image.Point, trans Color) PosTransparent {
-	return PosTransparent{Pos: Pos{e, coords}, clr: trans, _clr: trans.Color()}
+	return PosTransparent{Pos: NewPos(e, coords), clr: trans, _clr: trans.Color()}
 }
 
 func Compose(in ...Positionable) pipeline.Element {
@@ -43,8 +43,8 @@ func (p PosTransparent) Help() [][2]string {
 }
 
 func (p PosTransparent) Encode(w pipeline.Writer) error {
-	w.Int(p.p.X)
-	w.Int(p.p.Y)
+	w.Number(p.p.X)
+	w.Number(p.p.Y)
 	if err := w.Element(p.clr); err != nil {
 		return err
 	}
@@ -53,8 +53,8 @@ func (p PosTransparent) Encode(w pipeline.Writer) error {
 }
 
 func (p PosTransparent) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	p.p.X = r.Int()
-	p.p.Y = r.Int()
+	p.p.X = r.Number()
+	p.p.Y = r.Number()
 
 	clr, err := r.Element()
 	if err != nil {
@@ -73,10 +73,26 @@ func (p PosTransparent) Decode(r pipeline.Reader) (pipeline.Element, error) {
 
 type Pos struct {
 	el pipeline.Element
-	p  image.Point
+	p  Point
 }
 
-func (p Pos) Point() image.Point        { return p.p }
+type Point struct {
+	X, Y pipeline.Number
+}
+
+func (p Point) Execute(img *img48.Img) (image.Point, error) {
+	var pt image.Point
+	x, err := p.X.Execute(img)
+	pt.X = int(x)
+	if err != nil {
+		return pt, err
+	}
+	y, err := p.Y.Execute(img)
+	pt.Y = int(y)
+	return pt, err
+}
+
+func (p Pos) Point() Point              { return p.p }
 func (p Pos) Element() pipeline.Element { return p.el }
 
 func (Pos) Name() string { return "pos" }
@@ -92,14 +108,14 @@ func (p Pos) Help() [][2]string {
 }
 
 func (p Pos) Encode(w pipeline.Writer) error {
-	w.Int(p.p.X)
-	w.Int(p.p.Y)
+	w.Number(p.p.X)
+	w.Number(p.p.Y)
 	return w.Element(p.el)
 }
 
 func (p Pos) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	p.p.X = r.Int()
-	p.p.Y = r.Int()
+	p.p.X = r.Number()
+	p.p.Y = r.Number()
 	var err error
 	p.el, err = r.Element()
 	return p, err
@@ -139,7 +155,7 @@ func (c compose) Encode(w pipeline.Writer) error {
 }
 
 type Positionable interface {
-	Point() image.Point
+	Point() Point
 	Element() pipeline.Element
 }
 
@@ -177,14 +193,19 @@ func (c compose) doall(ctx pipeline.Context, img *img48.Img) ([]*img48.Img, erro
 	return is, nil
 }
 
-func (c compose) do(p Positionable, src, dst *img48.Img) {
+func (c compose) do(p Positionable, src, dst *img48.Img) error {
 	var t func(r, g, b uint16) bool
 	trans, ok := p.(Transparent)
 	if ok {
 		t = trans.Transparent
 	}
 
-	core.Draw(p.Point(), src, dst, t)
+	pnt, err := p.Point().Execute(dst)
+	if err != nil {
+		return err
+	}
+	core.Draw(pnt, src, dst, t)
+	return nil
 }
 
 func (c compose) Do(ctx pipeline.Context, dst *img48.Img) (*img48.Img, error) {
@@ -200,7 +221,10 @@ func (c compose) Do(ctx pipeline.Context, dst *img48.Img) (*img48.Img, error) {
 	}
 
 	for i, src := range imgs {
-		c.do(c.items[i], src, dst)
+		if err := c.do(c.items[i], src, dst); err != nil {
+			return dst, err
+		}
+
 	}
 
 	return dst, nil

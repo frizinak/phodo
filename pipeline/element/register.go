@@ -37,6 +37,8 @@ func init() {
 
 	pipeline.Register(or{})
 
+	pipeline.Register(calc{})
+
 	pipeline.Register(contrast{})
 	pipeline.Register(brightness{})
 	pipeline.Register(gamma{})

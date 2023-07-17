@@ -9,6 +9,10 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/frizinak/phodo/img48"
+	"github.com/mattn/anko/env"
+	"github.com/mattn/anko/vm"
 )
 
 type Decodable interface {
@@ -24,16 +28,67 @@ type Reader interface {
 	String() string
 	StringDefault(string) string
 
-	Int() int
-	IntDefault(int) int
-
-	Float() float64
-	FloatDefault(float64) float64
+	Number() Number
+	NumberDefault(float64) Number
 
 	Element() (Element, error)
 	ElementDefault(Element) (Element, error)
 
 	Len() int
+}
+
+type Number interface {
+	Execute(img *img48.Img) (float64, error)
+	Encode(w Writer)
+}
+
+type PlainNumber float64
+
+func (pn PlainNumber) Execute(img *img48.Img) (float64, error) {
+	return float64(pn), nil
+}
+
+func (pn PlainNumber) Encode(w Writer) { w.Float(float64(pn)) }
+
+type AnkoCalc struct {
+	env  *env.Env
+	calc string
+}
+
+func (c AnkoCalc) Encode(w Writer) { w.CalcString(c.calc) }
+
+func (c AnkoCalc) Execute(img *img48.Img) (float64, error) {
+	if img != nil {
+		w, h := img.Rect.Dx(), img.Rect.Dy()
+		m := map[string]interface{}{
+			"width":  w,
+			"w":      w,
+			"height": h,
+			"h":      h,
+		}
+
+		for k, v := range m {
+			if err := c.env.Define(k, v); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	ret, err := vm.Execute(c.env, nil, c.calc)
+	if err != nil {
+		err = fmt.Errorf("anko error in `%s`: %w", c.calc, err)
+		return 0, err
+	}
+	switch v := ret.(type) {
+	case float64:
+		return v, nil
+	case int:
+		return float64(v), nil
+	case int64:
+		return float64(v), nil
+	}
+
+	return 0, fmt.Errorf("unknown type in calc: %T: %+v", ret, ret)
 }
 
 type errReader struct {
@@ -88,6 +143,8 @@ type Hash interface {
 }
 
 type entry struct {
+	env *env.Env
+
 	values []*entry
 	value  string
 
@@ -134,12 +191,69 @@ func (e *entry) ix() *entry {
 
 func (e *entry) Hash() Hash { return e.sum }
 
-func (e *entry) String() string                   { return e.string(nil) }
-func (e *entry) StringDefault(def string) string  { return e.string(&def) }
-func (e *entry) Int() int                         { return e.int(nil) }
-func (e *entry) IntDefault(def int) int           { return e.int(&def) }
-func (e *entry) Float() float64                   { return e.float(nil) }
-func (e *entry) FloatDefault(def float64) float64 { return e.float(&def) }
+func isPlainNumber(str string) (float64, bool) {
+	if len(str) == 0 {
+		return 0, true
+	}
+
+	const num = "0123456789."
+	pct := false
+	if len(str) > 1 && str[len(str)-1] == '%' {
+		str = str[:len(str)-1]
+		pct = true
+	}
+
+	chk := str
+	if len(chk) > 1 && chk[0] == '-' {
+		chk = chk[1:]
+	}
+
+	flt := len(chk) != 0
+	for _, c := range chk {
+		if !strings.ContainsRune(num, c) {
+			flt = false
+			break
+		}
+	}
+
+	if flt {
+		n, err := strconv.ParseFloat(str, 64)
+		if err == nil {
+			if pct {
+				return n / 100, true
+			}
+			return n, true
+		}
+	}
+
+	return 0, false
+}
+
+func (e *entry) number(str string) Number {
+	num, ok := isPlainNumber(str)
+	if ok {
+		return PlainNumber(num)
+	}
+
+	return AnkoCalc{
+		env:  e.env,
+		calc: str,
+	}
+}
+
+func (e *entry) Number() Number { return e.number(e.String()) }
+
+func (e *entry) NumberDefault(def float64) Number {
+	return e.number(e.StringDefault(fmt.Sprintf("%f", def)))
+}
+
+func (e *entry) String() string                  { return e.string(nil) }
+func (e *entry) StringDefault(def string) string { return e.string(&def) }
+
+// func (e *entry) Int() int                         { return e.int(nil) }
+// func (e *entry) IntDefault(def int) int           { return e.int(&def) }
+// func (e *entry) Float() float64                   { return e.float(nil) }
+// func (e *entry) FloatDefault(def float64) float64 { return e.float(&def) }
 
 func (e *entry) string(def *string) string {
 	val := e.ix().value
@@ -147,35 +261,6 @@ func (e *entry) string(def *string) string {
 		return *def
 	}
 	return val
-}
-
-func (e *entry) int(def *int) int {
-	val := e.string(nil)
-	if val == "" && def != nil {
-		return *def
-	}
-	v, err := strconv.Atoi(val)
-	if err != nil && e.err == nil {
-		e.err = fmt.Errorf("arg %d for element '%s' should be an integer", e.readIndex, e.value)
-	}
-	return v
-}
-
-func (e *entry) float(def *float64) float64 {
-	val := e.string(nil)
-	if val == "" && def != nil {
-		return *def
-	}
-	var div float64 = 1
-	if len(val) > 1 && val[len(val)-1] == '%' {
-		div = 100
-		val = val[:len(val)-1]
-	}
-	v, err := strconv.ParseFloat(val, 64)
-	if err != nil && e.err == nil {
-		e.err = fmt.Errorf("arg %d for element '%s' should be a float", e.readIndex, e.value)
-	}
-	return v / div
 }
 
 func (e *entry) Element() (Element, error) {
@@ -270,7 +355,9 @@ func (p *propagator) propagate() {
 }
 
 func (d *Decoder) Decode(cache *Root) (*Root, error) {
-	if err := d.decode(d.vars); err != nil {
+	calcenv := env.NewEnv()
+
+	if err := d.decode(calcenv, d.vars); err != nil {
 		return nil, err
 	}
 
@@ -368,11 +455,11 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 	return root, nil
 }
 
-func (d *Decoder) decode(vars map[string]string) error {
+func (d *Decoder) decode(calcenv *env.Env, vars map[string]string) error {
 	if d.state.decoded {
 		return d.state.err
 	}
-	e, err := d.entries(&entry{}, 0, vars)
+	e, err := d.entries(&entry{env: calcenv}, 0, vars)
 	if err == nil {
 		err = d.r.Err()
 	}
@@ -388,7 +475,7 @@ func (d *Decoder) decode(vars map[string]string) error {
 
 func (d *Decoder) entries(e *entry, depth int, vars map[string]string) (*entry, error) {
 	buf := make([]rune, 0, 1)
-	var str, esc, nl bool
+	var str, esc, nl, calc bool
 	varbuf := make([]rune, 0, 1)
 
 	for {
@@ -427,7 +514,13 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string) (*entry, 
 				varbuf = append(varbuf, r)
 			}
 
-		case (space || r == parenClose) && !str && !esc:
+		case r == calcOpen && !calc:
+			calc = true
+
+		case r == calcClose && calc:
+			calc = false
+
+		case (space || r == parenClose) && !str && !esc && !calc:
 			nl = r == '\n' || (nl && space)
 			val := strings.TrimSpace(string(buf))
 			if val == "" {
@@ -436,20 +529,20 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string) (*entry, 
 				}
 				continue
 			}
-			e.values = append(e.values, &entry{value: val})
+			e.values = append(e.values, &entry{env: e.env, value: val})
 			buf = buf[:0]
 			if r == parenClose {
 				return e, nil
 			}
 
-		case r == parenOpen && !str && !esc:
+		case r == parenOpen && !str && !esc && !calc:
 			nl = false
 			val := strings.TrimSpace(string(buf))
 			if val == "" {
 				val = anonPipeline
 			}
 
-			ne, err := d.entries(&entry{value: val}, depth+1, vars)
+			ne, err := d.entries(&entry{env: e.env, value: val}, depth+1, vars)
 			buf = buf[:0]
 			if err != nil {
 				return e, err

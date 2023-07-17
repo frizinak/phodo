@@ -19,9 +19,11 @@ type Encodable interface {
 type Writer interface {
 	String(string)
 	PlainString(string)
+	CalcString(string)
 
-	Int(int)
-	Float(float64)
+	Number(Number)
+
+	Float(float64) // todo rename to Float
 
 	Element(Element) error
 }
@@ -93,6 +95,8 @@ const (
 	parenOpen  = '('
 	parenClose = ')'
 	nl         = '\n'
+	calcOpen   = '`'
+	calcClose  = '`'
 )
 
 func (e *Encoder) String(str string) {
@@ -136,7 +140,21 @@ func (e *Encoder) PlainString(str string) {
 	e.addWord([]byte(str))
 }
 
-func (e *Encoder) Int(n int)       { e.addWord(strconv.AppendInt(nil, int64(n), 10)) }
+func (e *Encoder) CalcString(str string) {
+	_, ok := isPlainNumber(str)
+	if ok {
+		if str == "" {
+			str = "0"
+		}
+		e.PlainString(str)
+		return
+	}
+
+	e.PlainString(fmt.Sprintf("`%s`", str))
+}
+
+func (e *Encoder) Number(n Number) { n.Encode(e) }
+
 func (e *Encoder) Float(f float64) { e.addWord(strconv.AppendFloat(nil, f, 'f', -1, 64)) }
 
 func (e *Encoder) Element(el Element) error {

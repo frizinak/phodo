@@ -108,6 +108,10 @@ func cresize(src *img48.Img, dstb image.Rectangle, kernel draw.Kernel) *img48.Im
 	if sw == dw && sh == dh {
 		return src
 	}
+	if dw <= 0 || sw <= 0 {
+		return img48.New(image.Rect(0, 0, 0, 0))
+	}
+
 	maxw := dw
 	maxh := dh
 	if sw > maxw {

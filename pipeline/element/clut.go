@@ -12,7 +12,7 @@ func CLUT(e pipeline.Element) pipeline.Element { return clut{e: e} }
 
 type clut struct {
 	e      pipeline.Element
-	amount float64
+	amount pipeline.Number
 }
 
 func (clut) Name() string { return "clut" }
@@ -44,7 +44,7 @@ func (c clut) Help() [][2]string {
 
 func (c clut) Encode(w pipeline.Writer) error {
 	err := w.Element(c.e)
-	w.Float(c.amount)
+	w.Number(c.amount)
 	return err
 }
 
@@ -52,11 +52,7 @@ func (c clut) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	var err error
 
 	c.e, err = r.Element()
-	c.amount = r.FloatDefault(1)
-
-	if c.amount == 0 {
-		c.amount = 1
-	}
+	c.amount = r.NumberDefault(1)
 
 	return c, err
 }
@@ -73,5 +69,10 @@ func (c clut) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(c.Name())
 	}
 
-	return img, core.CLUT(img, clut, c.amount)
+	amount, err := c.amount.Execute(img)
+	if err != nil {
+		return img, err
+	}
+
+	return img, core.CLUT(img, clut, amount)
 }

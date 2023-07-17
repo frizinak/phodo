@@ -8,25 +8,38 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-func RGBAdd(r, g, b int) pipeline.Element     { return rgbAdd{r, g, b} }
-func RGBMul(r, g, b float64) pipeline.Element { return rgbMul{r, g, b} }
+func RGBAdd(r, g, b int) pipeline.Element {
+	return rgbAdd{
+		pipeline.PlainNumber(r),
+		pipeline.PlainNumber(g),
+		pipeline.PlainNumber(b),
+	}
+}
 
-type rgbAdd struct{ r, g, b int }
+func RGBMul(r, g, b float64) pipeline.Element {
+	return rgbMul{
+		pipeline.PlainNumber(r),
+		pipeline.PlainNumber(g),
+		pipeline.PlainNumber(b),
+	}
+}
+
+type rgbAdd struct{ r, g, b pipeline.Number }
 
 func (rgbAdd) Name() string { return "rgb-add" }
 func (rgbAdd) Inline() bool { return true }
 
 func (r rgbAdd) Encode(w pipeline.Writer) error {
-	w.Int(r.r)
-	w.Int(r.g)
-	w.Int(r.b)
+	w.Number(r.r)
+	w.Number(r.g)
+	w.Number(r.b)
 	return nil
 }
 
 func (rgb rgbAdd) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	rgb.r = r.Int()
-	rgb.g = r.Int()
-	rgb.b = r.Int()
+	rgb.r = r.Number()
+	rgb.g = r.Number()
+	rgb.b = r.Number()
 	return rgb, nil
 }
 
@@ -46,27 +59,42 @@ func (rgb rgbAdd) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(rgb.Name())
 	}
 
-	core.RGBAdd(img, rgb.r, rgb.g, rgb.b)
+	_r, err := rgb.r.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	_g, err := rgb.g.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	_b, err := rgb.b.Execute(img)
+	if err != nil {
+		return img, err
+	}
+
+	r, g, b := int(_r), int(_g), int(_b)
+
+	core.RGBAdd(img, r, g, b)
 
 	return img, nil
 }
 
-type rgbMul struct{ r, g, b float64 }
+type rgbMul struct{ r, g, b pipeline.Number }
 
 func (rgbMul) Name() string { return "rgb-multiply" }
 func (rgbMul) Inline() bool { return true }
 
 func (r rgbMul) Encode(w pipeline.Writer) error {
-	w.Float(r.r)
-	w.Float(r.g)
-	w.Float(r.b)
+	w.Number(r.r)
+	w.Number(r.g)
+	w.Number(r.b)
 	return nil
 }
 
 func (rgb rgbMul) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	rgb.r = r.Float()
-	rgb.g = r.Float()
-	rgb.b = r.Float()
+	rgb.r = r.Number()
+	rgb.g = r.Number()
+	rgb.b = r.Number()
 	return rgb, nil
 }
 
@@ -86,7 +114,20 @@ func (rgb rgbMul) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(rgb.Name())
 	}
 
-	core.RGBMultiply(img, rgb.r, rgb.g, rgb.b)
+	r, err := rgb.r.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	g, err := rgb.g.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	b, err := rgb.b.Execute(img)
+	if err != nil {
+		return img, err
+	}
+
+	core.RGBMultiply(img, r, g, b)
 
 	return img, nil
 }

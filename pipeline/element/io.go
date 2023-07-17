@@ -24,13 +24,13 @@ func Save(w io.Writer, ext string, quality int) pipeline.Element {
 	if len(ext) == 0 || ext[0] != '.' {
 		ext = "." + ext
 	}
-	return saver{w: w, ext: ext, q: quality}
+	return saver{w: w, ext: ext, q: pipeline.PlainNumber(quality)}
 }
 
 func SaveFile(path string, quality int) pipeline.Element {
 	return saver{
 		file: path,
-		q:    quality,
+		q:    pipeline.PlainNumber(quality),
 	}
 }
 
@@ -98,7 +98,7 @@ func (l loader) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 type saver struct {
 	file string
 	ext  string
-	q    int
+	q    pipeline.Number
 	w    io.Writer
 }
 
@@ -123,13 +123,13 @@ func (s saver) Encode(w pipeline.Writer) error {
 		return errors.New("loaded from reader, not a file")
 	}
 	w.String(s.file)
-	w.Int(s.q)
+	w.Number(s.q)
 	return nil
 }
 
 func (s saver) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	s.file = r.String()
-	s.q = r.IntDefault(100)
+	s.q = r.NumberDefault(100)
 	return s, nil
 }
 
@@ -166,7 +166,12 @@ func (s saver) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		s.ext = strings.ToLower(filepath.Ext(s.file))
 	}
 
-	err = core.ImageEncode(w, img, s.ext, s.q)
+	q, err := s.q.Execute(img)
+	if err != nil {
+		return img, err
+	}
+
+	err = core.ImageEncode(w, img, s.ext, int(q))
 	if err = cl(err); err != nil {
 		return img, err
 	}

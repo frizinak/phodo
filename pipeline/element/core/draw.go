@@ -21,6 +21,9 @@ func Draw(p image.Point, src, dst *img48.Img, trans func(r, g, b uint16) bool) {
 		for x := sr.Min.X; x < sr.Max.X; x++ {
 			so := so_ + (x-sr.Min.X)*3
 			do := do_ + (x+p.X-sr.Min.X)*3
+			if do < 0 {
+				continue
+			}
 			p := src.Pix[so : so+3 : so+3]
 			if do < len(dst.Pix) && (trans == nil ||
 				!trans(p[0], p[1], p[2])) {

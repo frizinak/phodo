@@ -8,15 +8,21 @@ import (
 	"github.com/frizinak/phodo/pipeline"
 )
 
-func RGB16(r, g, b uint16) clrRGB16 { return clrRGB16{[3]uint16{r, g, b}} }
+func RGB16(r, g, b uint16) clrRGB16 {
+	return clrRGB16{
+		pipeline.PlainNumber(r),
+		pipeline.PlainNumber(g),
+		pipeline.PlainNumber(b),
+	}
+}
 
 func RGB8(r, g, b uint8) clrRGB16 {
 	_r, _g, _b := uint16(r), uint16(g), uint16(b)
-	return clrRGB16{[3]uint16{
-		_r<<8 | _r,
-		_g<<8 | _r,
-		_b<<8 | _r,
-	}}
+	return RGB16(
+		_r<<8|_r,
+		_g<<8|_r,
+		_b<<8|_r,
+	)
 }
 
 func Hex(str string) (clrRGB16, error) {
@@ -92,25 +98,23 @@ func (hex clrHex) Help() [][2]string {
 }
 
 type clrRGB struct {
-	r, g, b int
-	clrRGB16
+	r, g, b pipeline.Number
 }
 
 func (clrRGB) Name() string { return "rgb" }
 func (clrRGB) Inline() bool { return true }
 
 func (clr clrRGB) Encode(w pipeline.Writer) error {
-	w.Int(clr.r)
-	w.Int(clr.r)
-	w.Int(clr.r)
+	w.Number(clr.r)
+	w.Number(clr.r)
+	w.Number(clr.r)
 	return nil
 }
 
 func (clr clrRGB) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	clr.r = r.Int()
-	clr.g = r.Int()
-	clr.b = r.Int()
-	clr.clrRGB16 = RGB8(uint8(clr.r), uint8(clr.g), uint8(clr.b))
+	clr.r = r.Number()
+	clr.g = r.Number()
+	clr.b = r.Number()
 	return clr, nil
 }
 
@@ -124,24 +128,47 @@ func (clr clrRGB) Help() [][2]string {
 	}
 }
 
+func (clr clrRGB) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	return img, nil
+}
+
+func (clr clrRGB) Color() [3]uint16 {
+
+	r, err := clr.r.Execute(nil)
+	if err != nil {
+		panic(err)
+	}
+	g, err := clr.g.Execute(nil)
+	if err != nil {
+		panic(err)
+	}
+	b, err := clr.b.Execute(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	_r, _g, _b := uint16(r), uint16(g), uint16(b)
+	return [3]uint16{uint16(_r<<8 | _r), uint16(_g<<8 | _g), uint16(_b<<8 | _b)}
+}
+
 type clrRGB16 struct {
-	c [3]uint16
+	r, g, b pipeline.Number
 }
 
 func (clrRGB16) Name() string { return "rgb16" }
 func (clrRGB16) Inline() bool { return true }
 
 func (clr clrRGB16) Encode(w pipeline.Writer) error {
-	w.Int(int(clr.c[0]))
-	w.Int(int(clr.c[1]))
-	w.Int(int(clr.c[2]))
+	w.Number(clr.r)
+	w.Number(clr.g)
+	w.Number(clr.b)
 	return nil
 }
 
 func (clr clrRGB16) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	clr.c[0] = uint16(r.Int())
-	clr.c[1] = uint16(r.Int())
-	clr.c[2] = uint16(r.Int())
+	clr.r = r.Number()
+	clr.g = r.Number()
+	clr.b = r.Number()
 	return clr, nil
 }
 
@@ -156,9 +183,21 @@ func (clr clrRGB16) Help() [][2]string {
 }
 
 func (clr clrRGB16) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
-	ctx.Mark(clr)
-
 	return img, nil
 }
 
-func (clr clrRGB16) Color() [3]uint16 { return clr.c }
+func (clr clrRGB16) Color() [3]uint16 {
+	r, err := clr.r.Execute(nil)
+	if err != nil {
+		panic(err)
+	}
+	g, err := clr.g.Execute(nil)
+	if err != nil {
+		panic(err)
+	}
+	b, err := clr.b.Execute(nil)
+	if err != nil {
+		panic(err)
+	}
+	return [3]uint16{uint16(r), uint16(g), uint16(b)}
+}

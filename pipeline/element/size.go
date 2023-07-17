@@ -14,10 +14,22 @@ func Resize(w, h int, kernel Kernel, opts core.ResizeOptions) pipeline.Element {
 	if kernel == "" {
 		kernel = KernelBox
 	}
-	return resize{w: w, h: h, kernel: kernel, opts: opts}
+	return resize{
+		w:      pipeline.PlainNumber(w),
+		h:      pipeline.PlainNumber(h),
+		kernel: kernel,
+		opts:   opts,
+	}
 }
 
-func Crop(x, y, w, h int) pipeline.Element { return crop{x, y, w, h} }
+func Crop(x, y, w, h int) pipeline.Element {
+	return crop{
+		x: pipeline.PlainNumber(x),
+		y: pipeline.PlainNumber(y),
+		w: pipeline.PlainNumber(w),
+		h: pipeline.PlainNumber(h),
+	}
+}
 
 type Kernel string
 
@@ -42,7 +54,7 @@ func RegisterKernel(name Kernel, k draw.Kernel) {
 }
 
 type resize struct {
-	w, h   int
+	w, h   pipeline.Number
 	kernel Kernel
 	opts   core.ResizeOptions
 }
@@ -110,8 +122,8 @@ func (r resize) Help() [][2]string {
 }
 
 func (r resize) Encode(w pipeline.Writer) error {
-	w.Int(r.w)
-	w.Int(r.h)
+	w.Number(r.w)
+	w.Number(r.h)
 	w.PlainString(string(r.kernel))
 	if r.opts&core.ResizeNoUpscale == 0 {
 		w.PlainString("upscale")
@@ -130,8 +142,8 @@ func (res resize) Decode(r pipeline.Reader) (pipeline.Element, error) {
 		opts |= core.ResizeMax
 	}
 
-	w := r.Int()
-	h := r.Int()
+	w := r.Number()
+	h := r.Number()
 	rest := []string{r.String(), r.String()}
 
 	kernel := KernelBox
@@ -153,12 +165,23 @@ func (r resize) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(r.Name())
 	}
 
-	return core.ImageResize(img, kernels[r.kernel], r.opts, r.w, r.h), nil
+	_w, err := r.w.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	_h, err := r.w.Execute(img)
+	if err != nil {
+		return img, err
+	}
+
+	w, h := int(_w), int(_h)
+
+	return core.ImageResize(img, kernels[r.kernel], r.opts, w, h), nil
 }
 
 type crop struct {
-	x, y int
-	w, h int
+	x, y pipeline.Number
+	w, h pipeline.Number
 }
 
 func (crop) Name() string { return "crop" }
@@ -174,18 +197,18 @@ func (c crop) Help() [][2]string {
 }
 
 func (c crop) Encode(w pipeline.Writer) error {
-	w.Int(c.x)
-	w.Int(c.y)
-	w.Int(c.w)
-	w.Int(c.h)
+	w.Number(c.x)
+	w.Number(c.y)
+	w.Number(c.w)
+	w.Number(c.h)
 	return nil
 }
 
 func (c crop) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.x = r.Int()
-	c.y = r.Int()
-	c.w = r.Int()
-	c.h = r.Int()
+	c.x = r.Number()
+	c.y = r.Number()
+	c.w = r.Number()
+	c.h = r.Number()
 	return c, nil
 }
 
@@ -196,15 +219,33 @@ func (c crop) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(c.Name())
 	}
 
-	if c.w == -1 {
-		c.w = img.Rect.Dx()
+	_w, err := c.w.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	_h, err := c.h.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	_x, err := c.x.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	_y, err := c.y.Execute(img)
+	if err != nil {
+		return img, err
 	}
 
-	if c.h == -1 {
-		c.h = img.Rect.Dy()
+	w, h, x, y := int(_w), int(_h), int(_x), int(_y)
+	if w == -1 {
+		w = img.Rect.Dx()
 	}
 
-	c.x += img.Rect.Min.X
-	c.y += img.Rect.Min.Y
-	return img.SubImage(image.Rect(c.x, c.y, c.x+c.w, c.y+c.h)).(*img48.Img), nil
+	if h == -1 {
+		h = img.Rect.Dy()
+	}
+
+	x += img.Rect.Min.X
+	y += img.Rect.Min.Y
+	return img.SubImage(image.Rect(x, y, x+w, y+h)).(*img48.Img), nil
 }

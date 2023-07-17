@@ -22,8 +22,8 @@ func Histogram() HistogramElement {
 }
 
 type HistogramElement struct {
-	barWidth int
-	w, h     int
+	barWidth pipeline.Number
+	w, h     pipeline.Number
 	output   uint8
 	ipol     bool
 }
@@ -34,12 +34,12 @@ func (h HistogramElement) Interpolated() HistogramElement {
 }
 
 func (h HistogramElement) BarSize(size int) HistogramElement {
-	h.barWidth = size
+	h.barWidth = pipeline.PlainNumber(size)
 	return h
 }
 
 func (h HistogramElement) Size(width, height int) HistogramElement {
-	h.w, h.h = width, height
+	h.w, h.h = pipeline.PlainNumber(width), pipeline.PlainNumber(height)
 	return h
 }
 
@@ -96,9 +96,9 @@ func (h HistogramElement) Help() [][2]string {
 
 func (h HistogramElement) Encode(w pipeline.Writer) error {
 	w.PlainString(outputName[h.output])
-	w.Int(h.w)
-	w.Int(h.h)
-	w.Int(h.barWidth)
+	w.Number(h.w)
+	w.Number(h.h)
+	w.Number(h.barWidth)
 
 	return nil
 }
@@ -110,39 +110,53 @@ func (h HistogramElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid historgram type: '%s'", typ)
 	}
-	h.w = r.Int()
-	h.h = r.Int()
-	h.barWidth = r.Int()
+	h.w = r.Number()
+	h.h = r.Number()
+	h.barWidth = r.Number()
 	return h, nil
 }
 
-func (h HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
-	ctx.Mark(h)
+func (hist HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(hist)
 
 	if img == nil {
-		return img, pipeline.NewErrNeedImageInput(h.Name())
+		return img, pipeline.NewErrNeedImageInput(hist.Name())
 	}
 
-	if h.barWidth == 0 {
-		h.barWidth = 3
+	_barWidth, err := hist.barWidth.Execute(img)
+	if err != nil {
+		return img, err
 	}
-	if h.w == 0 {
-		h.w = 512
+	_w, err := hist.w.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	_h, err := hist.h.Execute(img)
+	if err != nil {
+		return img, err
 	}
 
-	if h.h == 0 {
-		h.h = 256
+	w, h, barWidth := int(_w), int(_h), int(_barWidth)
+	if barWidth == 0 {
+		barWidth = 3
+	}
+	if w == 0 {
+		w = 512
+	}
+
+	if h == 0 {
+		h = 256
 	}
 
 	var rgb [3][]uint32
-	if /*len(h.rgb[0]) == 0 &&*/ h.output&outputRGB != 0 {
-		rgb[0] = make([]uint32, h.w/h.barWidth)
-		rgb[1] = make([]uint32, h.w/h.barWidth)
-		rgb[2] = make([]uint32, h.w/h.barWidth)
+	if /*len(h.rgb[0]) == 0 &&*/ hist.output&outputRGB != 0 {
+		rgb[0] = make([]uint32, w/barWidth)
+		rgb[1] = make([]uint32, w/barWidth)
+		rgb[2] = make([]uint32, w/barWidth)
 	}
 	var white []uint32
-	if /*len(h.v) == 0 &&*/ h.output&outputWhite != 0 {
-		white = make([]uint32, h.w/h.barWidth)
+	if /*len(hist.v) == 0 &&*/ hist.output&outputWhite != 0 {
+		white = make([]uint32, w/barWidth)
 	}
 
 	rgbl := uint32(len(rgb[0]))
@@ -167,7 +181,7 @@ func (h HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, 
 		}
 	}
 
-	if h.output == 0 {
+	if hist.output == 0 {
 		return img, nil
 	}
 
@@ -176,14 +190,14 @@ func (h HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, 
 		width = vl
 	}
 
-	width *= uint32(h.barWidth)
-	height := uint32(h.h)
+	width *= uint32(barWidth)
+	height := uint32(h)
 
 	img = img48.New(
 		image.Rect(0, 0, int(width), int(height)),
 	)
 
-	w := []uint16{
+	wht := []uint16{
 		1<<16 - 1,
 		1<<16 - 1,
 		1<<16 - 1,
@@ -194,7 +208,7 @@ func (h HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, 
 		for _, v := range vs {
 			avg += uint32(v)
 		}
-		if h.ipol {
+		if hist.ipol {
 			interpolate32u(vs)
 		}
 	}
@@ -202,19 +216,23 @@ func (h HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, 
 	for _, v := range white {
 		avg += uint32(v * 3)
 	}
-	if h.ipol {
+	if hist.ipol {
 		interpolate32u(white)
 	}
 
 	avg = 2 * avg / uint32(rgbl+vl)
 
-	if h.output&outputRGB != 0 {
+	if avg == 0 {
+		return img, nil
+	}
+
+	if hist.output&outputRGB != 0 {
 		for x := 0; x < int(rgbl); x++ {
 			r := int(uint32(rgb[0][x]) * height / avg)
 			g := int(uint32(rgb[1][x]) * height / avg)
 			b := int(uint32(rgb[2][x]) * height / avg)
-			for i := 0; i < h.barWidth; i++ {
-				o_ := ((x*h.barWidth + i) - img.Rect.Min.X) * 3
+			for i := 0; i < barWidth; i++ {
+				o_ := ((x*barWidth + i) - img.Rect.Min.X) * 3
 				for y := 0; y < img.Rect.Max.Y; y++ {
 					o := o_ + y*img.Stride
 					pix := img.Pix[o : o+3 : o+3]
@@ -233,15 +251,15 @@ func (h HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, 
 		}
 	}
 
-	if h.output&outputWhite != 0 {
+	if hist.output&outputWhite != 0 {
 		for x, e := range white {
 			v := int(uint32(e) * height / avg)
-			for i := 0; i < h.barWidth; i++ {
-				o_ := ((x*h.barWidth + i) - img.Rect.Min.X) * 3
+			for i := 0; i < barWidth; i++ {
+				o_ := ((x*barWidth + i) - img.Rect.Min.X) * 3
 				for y := img.Rect.Max.Y - 1; y >= img.Rect.Max.Y-v && y >= 0; y-- {
 					o := o_ + y*img.Stride
 					pix := img.Pix[o : o+3 : o+3]
-					copy(pix, w)
+					copy(pix, wht)
 				}
 			}
 		}

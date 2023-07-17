@@ -9,9 +9,12 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-func Copy() pipeline.Element                    { return cpy{} }
-func Canvas(width, height int) pipeline.Element { return canvas{width, height} }
-func Image(img image.Image) pipeline.Element    { return imgStatic{img: img} }
+func Copy() pipeline.Element                 { return cpy{} }
+func Image(img image.Image) pipeline.Element { return imgStatic{img: img} }
+
+func Canvas(width, height int) pipeline.Element {
+	return canvas{pipeline.PlainNumber(width), pipeline.PlainNumber(height)}
+}
 
 type cpy struct{}
 
@@ -39,19 +42,19 @@ func (c cpy) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return core.ImageCopyDiscard(img), nil
 }
 
-type canvas struct{ width, height int }
+type canvas struct{ width, height pipeline.Number }
 
 func (canvas) Name() string { return "new" }
 func (canvas) Inline() bool { return true }
 func (c canvas) Encode(w pipeline.Writer) error {
-	w.Int(c.width)
-	w.Int(c.height)
+	w.Number(c.width)
+	w.Number(c.height)
 	return nil
 }
 
 func (c canvas) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.width = r.Int()
-	c.height = r.Int()
+	c.width = r.Number()
+	c.height = r.Number()
 	return c, nil
 }
 
@@ -68,7 +71,16 @@ func (c canvas) Help() [][2]string {
 func (c canvas) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	ctx.Mark(c)
 
-	return img48.New(image.Rect(0, 0, c.width, c.height)), nil
+	w, err := c.width.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	h, err := c.width.Execute(img)
+	if err != nil {
+		return img, err
+	}
+
+	return img48.New(image.Rect(0, 0, int(w), int(h))), nil
 }
 
 type imgStatic struct {

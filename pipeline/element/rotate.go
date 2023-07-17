@@ -9,7 +9,7 @@ import (
 )
 
 func CorrectOrientation() pipeline.Element { return orient{} }
-func Rotate(n int) pipeline.Element        { return rotate{n} }
+func Rotate(n int) pipeline.Element        { return rotate{pipeline.PlainNumber(n)} }
 
 type orient struct{}
 
@@ -50,7 +50,7 @@ func (o orient) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return img, nil
 }
 
-type rotate struct{ n int }
+type rotate struct{ n pipeline.Number }
 
 func (rotate) Name() string { return "rotate" }
 func (rotate) Inline() bool { return true }
@@ -65,13 +65,13 @@ func (r rotate) Help() [][2]string {
 }
 
 func (r rotate) Encode(w pipeline.Writer) error {
-	w.Int(r.n)
+	w.Number(r.n)
 	return nil
 }
 
 func (r rotate) Decode(rdr pipeline.Reader) (pipeline.Element, error) {
 	return rotate{
-		n: rdr.Int(),
+		n: rdr.Number(),
 	}, nil
 }
 
@@ -82,15 +82,21 @@ func (r rotate) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(r.Name())
 	}
 
-	if r.n < -3 || r.n > 3 {
-		ctx.Warn(r, fmt.Sprintf("a rotation of '%d' and '%d' are equivalent", r.n, r.n%4))
+	_n, err := r.n.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	n := int(_n)
+
+	if n < -3 || n > 3 {
+		ctx.Warn(r, fmt.Sprintf("a rotation of '%d' and '%d' are equivalent", n, n%4))
 	}
 
 	tag := img.Exif.Find(0x112)
 	if tag != nil {
 		tag.SetInts([]int{1})
 	}
-	img = core.ImageRotate(img, r.n)
+	img = core.ImageRotate(img, n)
 
 	return img, nil
 }
