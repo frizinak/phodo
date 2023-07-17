@@ -20,8 +20,8 @@ func RGB8(r, g, b uint8) clrRGB16 {
 	_r, _g, _b := uint16(r), uint16(g), uint16(b)
 	return RGB16(
 		_r<<8|_r,
-		_g<<8|_r,
-		_b<<8|_r,
+		_g<<8|_g,
+		_b<<8|_b,
 	)
 }
 
