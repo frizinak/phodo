@@ -22,12 +22,14 @@ func init() {
 
 	pipeline.Register(extend{})
 	pipeline.Register(border{})
+	pipeline.Register(circle{})
 	pipeline.Register(clrHex{})
 	pipeline.Register(clrRGB{})
 	pipeline.Register(clrRGB16{})
 
 	pipeline.Register(rgbAdd{})
 	pipeline.Register(rgbMul{})
+	pipeline.Register(whiteBalanceSpot{})
 
 	pipeline.Register(stateElement{typ: stateStore})
 	pipeline.Register(stateElement{typ: stateRestore})

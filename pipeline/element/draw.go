@@ -105,6 +105,77 @@ func (b border) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return img, nil
 }
 
+type circle struct {
+	x, y pipeline.Number
+	r    pipeline.Number
+	w    pipeline.Number
+	clr  Color
+}
+
+func (circle) Name() string { return "circle" }
+func (circle) Inline() bool { return true }
+func (c circle) Encode(w pipeline.Writer) error {
+	w.Number(c.x)
+	w.Number(c.y)
+	w.Number(c.r)
+	w.Number(c.w)
+	return w.Element(c.clr)
+}
+
+func (c circle) Decode(r pipeline.Reader) (pipeline.Element, error) {
+	c.x = r.Number()
+	c.y = r.Number()
+	c.r = r.Number()
+	c.w = r.Number()
+	const max = 1<<16 - 1
+	clr, err := r.ElementDefault(RGB16(max, max, max))
+	if err != nil {
+		return c, err
+	}
+	c.clr = clr.(Color)
+
+	return c, nil
+}
+
+func (c circle) Help() [][2]string {
+	return [][2]string{
+		{
+
+			fmt.Sprintf("%s(<x> <y> <radius> <width> [color])", c.Name()),
+			"Draws a circle with center point at <x> <y>.",
+		},
+	}
+}
+
+func (c circle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(c)
+
+	if img == nil {
+		return img, pipeline.NewErrNeedImageInput(c.Name())
+	}
+
+	x, err := c.x.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	y, err := c.y.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	r, err := c.r.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	w, err := c.w.Execute(img)
+	if err != nil {
+		return img, err
+	}
+
+	core.DrawCircleBorder(image.Point{int(x), int(y)}, int(r), int(w), c.clr, img)
+
+	return img, nil
+}
+
 type extend struct{ top, right, bottom, left pipeline.Number }
 
 func (extend) Name() string { return "extend" }

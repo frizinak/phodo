@@ -6,6 +6,7 @@ import (
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
+	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
 func RGB16(r, g, b uint16) clrRGB16 {
@@ -63,7 +64,7 @@ func Hex(str string) (clrRGB16, error) {
 }
 
 type Color interface {
-	Color() [3]uint16
+	core.Color
 	pipeline.Element
 }
 
