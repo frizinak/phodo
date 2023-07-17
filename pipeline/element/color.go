@@ -11,7 +11,12 @@ import (
 func RGB16(r, g, b uint16) clrRGB16 { return clrRGB16{[3]uint16{r, g, b}} }
 
 func RGB8(r, g, b uint8) clrRGB16 {
-	return clrRGB16{[3]uint16{uint16(r) * 257, uint16(g) * 257, uint16(b) * 257}}
+	_r, _g, _b := uint16(r), uint16(g), uint16(b)
+	return clrRGB16{[3]uint16{
+		_r<<8 | _r,
+		_g<<8 | _r,
+		_b<<8 | _r,
+	}}
 }
 
 func Hex(str string) (clrRGB16, error) {
