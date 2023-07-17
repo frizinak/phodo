@@ -279,8 +279,9 @@ func (e *entry) ElementDefault(el Element) (Element, error) {
 }
 
 type Root struct {
-	o []string
-	m map[string]NamedElement
+	env *env.Env
+	o   []string
+	m   map[string]NamedElement
 }
 
 func (r *Root) Set(el NamedElement) {
@@ -303,10 +304,14 @@ func (r *Root) List() []NamedElement {
 	return l
 }
 
-func NewRoot() *Root {
+func NewRoot(env *env.Env) *Root {
+	if env == nil {
+		env = env.NewEnv()
+	}
 	return &Root{
-		o: make([]string, 0),
-		m: make(map[string]NamedElement),
+		env: env,
+		o:   make([]string, 0),
+		m:   make(map[string]NamedElement),
 	}
 }
 
@@ -355,16 +360,20 @@ func (p *propagator) propagate() {
 }
 
 func (d *Decoder) Decode(cache *Root) (*Root, error) {
-	calcenv := env.NewEnv()
 
-	if err := d.decode(calcenv, d.vars); err != nil {
+	var env *env.Env
+	if cache != nil && cache.env != nil {
+		env = cache.env
+	}
+	root := NewRoot(env)
+	env = root.env
+
+	if err := d.decode(env, d.vars); err != nil {
 		return nil, err
 	}
 
 	elookup := make(map[string]*entry)
 	lookup := make(map[string]Element)
-
-	root := NewRoot()
 
 	var dec func(h hash.Hash, p *propagator, e *entry) (Element, error)
 	dec = func(h hash.Hash, p *propagator, e *entry) (Element, error) {

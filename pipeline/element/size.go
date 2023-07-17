@@ -247,5 +247,5 @@ func (c crop) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 
 	x += img.Rect.Min.X
 	y += img.Rect.Min.Y
-	return img.SubImage(image.Rect(x, y, x+w, y+h)).(*img48.Img), nil
+	return core.ImageDiscard(img.SubImage(image.Rect(x, y, x+w, y+h)).(*img48.Img)), nil
 }
