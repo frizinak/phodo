@@ -21,6 +21,8 @@ integrate into my photography workflow.
 - [ ] More scripting options
     - [ ] Include files
     - [ ] math
+    - [ ] variables
+    - [ ] defining composite elements
     - [ ] ...
 - [X] EXIF input
 - [ ] EXIF output
