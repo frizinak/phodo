@@ -13,6 +13,7 @@ import (
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/mattn/anko/env"
+	_ "github.com/mattn/anko/packages"
 	"github.com/mattn/anko/vm"
 )
 
