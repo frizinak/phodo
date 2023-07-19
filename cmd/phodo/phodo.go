@@ -255,9 +255,7 @@ outer:
 		}
 		img = core.ImageDiscard(out)
 		v.Set(img)
-		if c.Verbose {
-			fmt.Fprintf(os.Stderr, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", time.Since(s).Round(time.Millisecond))
-		}
+		fmt.Fprintf(os.Stderr, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", time.Since(s).Round(time.Millisecond))
 
 		if fullRefreshing {
 			fmt.Fprintf(os.Stderr, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", "Refresh")

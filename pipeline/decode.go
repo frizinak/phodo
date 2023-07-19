@@ -66,6 +66,7 @@ func (c AnkoCalc) Execute(img *img48.Img) (float64, error) {
 			"w":      w,
 			"height": h,
 			"h":      h,
+			"print":  fmt.Println,
 		}
 
 		for k, v := range m {
@@ -87,6 +88,8 @@ func (c AnkoCalc) Execute(img *img48.Img) (float64, error) {
 		return float64(v), nil
 	case int64:
 		return float64(v), nil
+	case []interface{}:
+		return 0, nil
 	}
 
 	return 0, fmt.Errorf("unknown type in calc: %T: %+v", ret, ret)
