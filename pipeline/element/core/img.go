@@ -1,12 +1,20 @@
 package core
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"image"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"time"
 
 	"github.com/Andeling/tiff"
 	myexif "github.com/frizinak/phodo/exif"
@@ -65,7 +73,28 @@ func ImageCopyDiscard(img *img48.Img) *img48.Img {
 	return i
 }
 
+func TempFile(file string) string {
+	stamp := strconv.FormatInt(time.Now().UnixNano(), 36)
+	rnd := make([]byte, 32)
+	_, err := io.ReadFull(rand.Reader, rnd)
+	if err != nil {
+		panic(err)
+	}
+
+	return fmt.Sprintf(
+		"%s.%s-%s%s",
+		file,
+		stamp,
+		base64.RawURLEncoding.EncodeToString(rnd),
+		filepath.Ext(file),
+	)
+}
+
 func ImageDecode(r io.ReadSeeker, extHint string) (*img48.Img, error) {
+	return imageDecode(r, extHint, true)
+}
+
+func imageDecode(r io.ReadSeeker, extHint string, tryRAW bool) (*img48.Img, error) {
 	var _img image.Image
 	var err error
 	var typ string
@@ -91,8 +120,49 @@ func ImageDecode(r io.ReadSeeker, extHint string) (*img48.Img, error) {
 		}
 
 		_img, typ, err = image.Decode(r)
-		if err != nil {
-			return nil, err
+		if err != nil && tryRAW {
+			tmp := TempFile(filepath.Join(os.TempDir(), "phodo"))
+
+			{
+
+				if _, err = r.Seek(0, io.SeekStart); err != nil {
+					return nil, err
+				}
+				f, err := os.OpenFile(tmp, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+				if err != nil {
+					return nil, err
+				}
+				_, err = io.Copy(f, r)
+				f.Close()
+				defer os.Remove(tmp)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			cmd := exec.Command(
+				"dcraw_emu",
+				"-6",      // 16-bit
+				"-T",      // TIFF
+				"-w",      // Camera white balance
+				"-o", "1", // Colorspace: sRGB
+				"-q", "0", // Interpolation: linear
+				"-H", "0", // Highliht mode: clip
+				tmp,
+			)
+
+			if err := cmd.Run(); err != nil {
+				return nil, err
+			}
+
+			f, err := os.Open(tmp + ".tiff")
+			if err != nil {
+				return nil, err
+			}
+
+			img, err := imageDecode(f, ".tif", false)
+			f.Close()
+			return img, err
 		}
 	}
 

@@ -1,16 +1,12 @@
 package element
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
@@ -145,7 +141,7 @@ func (s saver) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	cl := func(error) error { return nil }
 	if w == nil {
 		var ww io.WriteCloser
-		tmp := tmpFile(s.file)
+		tmp := core.TempFile(s.file)
 		os.MkdirAll(filepath.Dir(s.file), 0755)
 		ww, err = os.Create(tmp)
 		if err != nil {
@@ -177,21 +173,4 @@ func (s saver) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	}
 
 	return img, nil
-}
-
-func tmpFile(file string) string {
-	stamp := strconv.FormatInt(time.Now().UnixNano(), 36)
-	rnd := make([]byte, 32)
-	_, err := io.ReadFull(rand.Reader, rnd)
-	if err != nil {
-		panic(err)
-	}
-
-	return fmt.Sprintf(
-		"%s.%s-%s%s",
-		file,
-		stamp,
-		base64.RawURLEncoding.EncodeToString(rnd),
-		filepath.Ext(file),
-	)
 }
