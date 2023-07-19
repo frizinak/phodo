@@ -7,6 +7,7 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -326,6 +327,7 @@ type Decoder struct {
 	r     *errReader
 	vars  map[string]string
 	state struct {
+		nl      bool
 		decoded bool
 		err     error
 		values  []*entry
@@ -334,7 +336,9 @@ type Decoder struct {
 
 func NewDecoder(r io.Reader, vars map[string]string) *Decoder {
 	rr := &errReader{r: bufio.NewReader(r)}
-	return &Decoder{r: rr, vars: vars}
+	d := &Decoder{r: rr, vars: vars}
+	d.state.nl = true
+	return d
 }
 
 type propagator struct {
@@ -360,7 +364,6 @@ func (p *propagator) propagate() {
 }
 
 func (d *Decoder) Decode(cache *Root) (*Root, error) {
-
 	var env *env.Env
 	if cache != nil && cache.env != nil {
 		env = cache.env
@@ -368,8 +371,33 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 	root := NewRoot(env)
 	env = root.env
 
-	if err := d.decode(env, d.vars); err != nil {
+	includes := make([]string, 0)
+	if err := d.decode(env, d.vars, &includes); err != nil {
 		return nil, err
+	}
+
+	for _, inc := range includes {
+		err := func() error {
+			f, err := os.Open(inc)
+			if err != nil {
+				return err
+			}
+
+			d := NewDecoder(f, d.vars)
+			r, err := d.Decode(cache)
+			f.Close()
+			if err != nil {
+				return err
+			}
+			for _, el := range r.List() {
+				root.Set(el)
+			}
+
+			return nil
+		}()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	elookup := make(map[string]*entry)
@@ -391,10 +419,20 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 		isRef := false
 		if named {
 			_, isRef = lookup[name]
-			if isRef && len(e.values) != 0 {
-				return nil, fmt.Errorf("'%s' is already defined", e.value)
+			if el, ok := root.Get(name); ok {
+				if len(e.values) != 0 {
+					return el.Element, fmt.Errorf("%s already defined", name)
+				}
+
+				return el.Element, nil
 			}
-			// TODO show warning if len(e.values) == 0?
+
+			if isRef && len(e.values) != 0 {
+				return nil, fmt.Errorf("%s is already defined", name)
+			}
+			if !isRef && len(e.values) == 0 {
+				return nil, fmt.Errorf("%s has an empty definition", name)
+			}
 			id = anonPipeline
 		}
 
@@ -464,11 +502,12 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 	return root, nil
 }
 
-func (d *Decoder) decode(calcenv *env.Env, vars map[string]string) error {
+func (d *Decoder) decode(calcenv *env.Env, vars map[string]string, includes *[]string) error {
 	if d.state.decoded {
 		return d.state.err
 	}
-	e, err := d.entries(&entry{env: calcenv}, 0, vars)
+
+	e, err := d.entries(&entry{env: calcenv}, 0, vars, includes)
 	if err == nil {
 		err = d.r.Err()
 	}
@@ -482,32 +521,30 @@ func (d *Decoder) decode(calcenv *env.Env, vars map[string]string) error {
 	return d.state.err
 }
 
-func (d *Decoder) entries(e *entry, depth int, vars map[string]string) (*entry, error) {
+func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes *[]string) (*entry, error) {
 	buf := make([]rune, 0, 1)
-	var str, esc, nl, calc bool
+	var str, esc, calc, inc bool
 	varbuf := make([]rune, 0, 1)
 
 	for {
 		r := d.r.ReadRune()
 		space := r == '\r' || r == '\n' || r == '\t' || r == ' '
+
 		switch {
 		case r == 0:
 			return e, d.r.Err()
 
 		case r == '"' && !esc:
-			nl = false
 			str = !str
 
 		case r == '\\' && !esc:
-			nl = false
 			esc = true
 
 		case r == '$' && !esc:
-			nl = false
 			if d.r.ReadRune() != '{' {
 				buf = append(buf, r)
 				d.r.UnreadRune()
-				continue
+				break
 			}
 			for {
 				r = d.r.ReadRune()
@@ -529,14 +566,13 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string) (*entry, 
 		case r == calcClose && calc:
 			calc = false
 
-		case (space || r == parenClose) && !str && !esc && !calc:
-			nl = r == '\n' || (nl && space)
+		case (space || r == parenClose) && !str && !esc && !calc && !inc:
 			val := strings.TrimSpace(string(buf))
 			if val == "" {
 				if r == parenClose {
 					return e, nil
 				}
-				continue
+				break
 			}
 			e.values = append(e.values, &entry{env: e.env, value: val})
 			buf = buf[:0]
@@ -544,24 +580,31 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string) (*entry, 
 				return e, nil
 			}
 
-		case r == parenOpen && !str && !esc && !calc:
-			nl = false
+		case r == parenOpen && !str && !esc && !calc && !inc:
 			val := strings.TrimSpace(string(buf))
 			if val == "" {
 				val = anonPipeline
 			}
 
-			ne, err := d.entries(&entry{env: e.env, value: val}, depth+1, vars)
+			ne, err := d.entries(&entry{env: e.env, value: val}, depth+1, vars, includes)
 			buf = buf[:0]
 			if err != nil {
 				return e, err
 			}
 			e.values = append(e.values, ne)
 
-		case nl && r == '/':
+		case d.state.nl && r == '#' && !inc:
+			inc = true
+		case d.state.nl && inc:
+			f := string(buf[:len(buf)-1])
+			*includes = append(*includes, f)
+			buf = buf[:0]
+			inc = false
+
+		case d.state.nl && r == '/':
 			if d.r.ReadRune() != '/' {
 				d.r.UnreadRune()
-				continue
+				break
 			}
 			for {
 				r = d.r.ReadRune()
@@ -571,9 +614,10 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string) (*entry, 
 			}
 
 		default:
-			nl = false
 			esc = false
 			buf = append(buf, r)
 		}
+
+		d.state.nl = r == '\n' || (d.state.nl && space)
 	}
 }

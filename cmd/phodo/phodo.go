@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,15 +23,96 @@ import (
 )
 
 type Conf struct {
-	Verbose          bool
-	InputFile        string
-	OutputFile       string
-	ScriptOverride   string
-	PipelineOverride string
+	Verbose    bool
+	InputFile  string
+	OutputFile string
+	Script     string
+	Pipeline   string
+
+	confDir string
 }
 
-func parseAssignments(args []string) (map[string]string, error) {
-	vars := make(map[string]string)
+var errNoVars = errors.New("no variables file")
+
+func (c *Conf) Parse() error {
+	if c.Script == "" {
+		c.Script = c.InputFile + ".pho"
+	}
+	if c.Pipeline == "" {
+		c.Pipeline = "main"
+	}
+
+	return nil
+}
+
+func (c *Conf) ConfDir() (string, error) {
+	if c.confDir != "" {
+		return c.confDir, nil
+	}
+
+	conf, err := os.UserConfigDir()
+	c.confDir = conf
+	return c.confDir, err
+}
+
+func (c *Conf) VarsFile() (string, error) {
+	d, err := c.ConfDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(d, "phodo", "vars"), nil
+}
+
+func (c *Conf) Vars() (map[string]string, error) {
+	m := make(map[string]string)
+	p, err := c.VarsFile()
+	if err != nil {
+		return m, err
+	}
+
+	f, err := os.Open(p)
+	if os.IsNotExist(err) {
+		err = fmt.Errorf("%w found at '%s'.", errNoVars, p)
+	}
+	if err != nil {
+		return m, err
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	s.Split(bufio.ScanLines)
+	line := 0
+	for s.Scan() {
+		line++
+		t := strings.TrimSpace(s.Text())
+		if t == "" {
+			continue
+		}
+
+		if !strings.ContainsRune(t, '=') || t[0] == '=' {
+			return m, fmt.Errorf("invalid syntax on line %d: '%s'", line, t)
+		}
+
+		p := strings.SplitN(t, "=", 2)
+		p1 := strings.TrimSpace(p[0])
+		p2 := ""
+		if len(p) == 2 {
+			p2 = strings.TrimSpace(p[1])
+		}
+
+		m[p1] = p2
+	}
+
+	return m, nil
+}
+
+func parseAssignments(c *Conf, args []string) (map[string]string, error) {
+	vars, err := c.Vars()
+	if err != nil && !errors.Is(err, errNoVars) {
+		return vars, err
+	}
+
 	for _, arg := range args {
 		ps := strings.SplitN(arg, "=", 2)
 		if len(ps) != 2 {
@@ -41,29 +124,22 @@ func parseAssignments(args []string) (map[string]string, error) {
 	return vars, nil
 }
 
-func handleEdit(c Conf, args []string) error {
-	pipe := string(pipeline.NamedPrefix) + "edit"
-	input := args[0]
-	script := input + ".pho"
-	args = args[1:]
+func handleEdit(c *Conf, args []string) error {
+	c.InputFile = args[0]
+	if err := c.Parse(); err != nil {
+		return nil
+	}
 
-	vars, err := parseAssignments(args)
+	args = args[1:]
+	vars, err := parseAssignments(c, args)
 	if err != nil {
 		return err
-	}
-
-	if c.ScriptOverride != "" {
-		script = c.ScriptOverride
-	}
-
-	if c.PipelineOverride != "" {
-		pipe = string(pipeline.NamedPrefix) + c.PipelineOverride
 	}
 
 	ictx, cancel := context.WithCancel(context.Background())
 	ctx := pipeline.NewContext(c.Verbose, ictx)
 	load := pipeline.New(
-		element.Once(element.LoadFile(input)),
+		element.Once(element.LoadFile(c.InputFile)),
 	)
 
 	var img *img48.Img
@@ -130,10 +206,10 @@ outer:
 		}
 
 		s := time.Now()
-		f, err := os.Open(script)
+		f, err := os.Open(c.Script)
 		if err != nil {
 			if os.IsNotExist(err) {
-				err = fmt.Errorf("failed to open pipeline script: %s", script)
+				err = fmt.Errorf("failed to open pipeline script: %s", c.Script)
 			}
 			fmt.Fprintln(os.Stderr, err)
 			time.Sleep(tError)
@@ -149,9 +225,9 @@ outer:
 			continue
 		}
 
-		e, ok := res.Get(pipe)
+		e, ok := res.Get(string(pipeline.NamedPrefix) + c.Pipeline)
 		if !ok {
-			fmt.Fprintf(os.Stderr, "no pipeline named '%s'\n", pipe)
+			fmt.Fprintf(os.Stderr, "no pipeline named '%s'\n", c.Pipeline)
 			time.Sleep(tError)
 			continue
 		}
@@ -177,7 +253,7 @@ outer:
 	return gerr
 }
 
-func handleDo(c Conf, args []string) error {
+func handleDo(c *Conf, args []string) error {
 	if len(args) == 0 {
 		return errors.New("please specify the input and output file")
 	}
@@ -185,47 +261,45 @@ func handleDo(c Conf, args []string) error {
 		return errors.New("please specify an output file.")
 	}
 
-	input := args[0]
-	output := args[1]
-	script := input + ".pho"
+	c.InputFile = args[0]
+	c.OutputFile = args[1]
 	args = args[2:]
 
-	vars, err := parseAssignments(args)
+	vars, err := parseAssignments(c, args)
 	if err != nil {
 		return err
 	}
 
-	c.InputFile = input
-	c.OutputFile = output
-	return runScript(c, script, "main", vars)
+	if err := c.Parse(); err != nil {
+		return err
+	}
+
+	return runScript(c, vars)
 }
 
-func handleScript(c Conf, args []string) error {
+func handleScript(c *Conf, args []string) error {
 	if len(args) == 0 {
 		return errors.New("please provide path to your pipeline script.")
 	}
 
-	script := args[0]
+	c.Script = args[0]
 	args = args[1:]
-	vars, err := parseAssignments(args)
+	vars, err := parseAssignments(c, args)
 	if err != nil {
 		return err
 	}
 
-	return runScript(c, script, "main", vars)
+	if err := c.Parse(); err != nil {
+		return err
+	}
+
+	return runScript(c, vars)
 }
 
-func runScript(c Conf, script, pipe string, vars map[string]string) error {
-	if c.ScriptOverride != "" {
-		script = c.ScriptOverride
-	}
-	if c.PipelineOverride != "" {
-		pipe = c.PipelineOverride
-	}
-
-	f, err := os.Open(script)
+func runScript(c *Conf, vars map[string]string) error {
+	f, err := os.Open(c.Script)
 	if err != nil {
-		return fmt.Errorf("failed to open pipeline scipt: %s: '%w'", script, err)
+		return fmt.Errorf("failed to open pipeline scipt: %s: '%w'", c.Script, err)
 	}
 	r := pipeline.NewDecoder(f, vars)
 	res, err := r.Decode(nil)
@@ -235,6 +309,8 @@ func runScript(c Conf, script, pipe string, vars map[string]string) error {
 	}
 
 	pl, ok := res.Get(string(pipeline.NamedPrefix) + pipe)
+
+	pl, ok := res.Get(string(pipeline.NamedPrefix) + c.Pipeline)
 	if !ok {
 		list := res.List()
 		l := make([]string, len(list))
@@ -243,7 +319,7 @@ func runScript(c Conf, script, pipe string, vars map[string]string) error {
 		}
 		return fmt.Errorf(
 			"no pipeline found by name '%s'. available:\n%s",
-			pipe,
+			c.Pipeline,
 			strings.Join(l, "\n"),
 		)
 	}
@@ -266,18 +342,18 @@ func runScript(c Conf, script, pipe string, vars map[string]string) error {
 }
 
 func main() {
-	c := Conf{}
+	c := &Conf{}
 
 	flagVerbose := func(set *flag.FlagSet) {
 		set.BoolVar(&c.Verbose, "v", false, "Be verbose")
 	}
 
 	flagPipeline := func(set *flag.FlagSet) {
-		set.StringVar(&c.PipelineOverride, "p", "", "name of the named pipe to execute")
+		set.StringVar(&c.Pipeline, "p", "main", "name of the named pipe to execute")
 	}
 
 	flagScript := func(set *flag.FlagSet) {
-		set.StringVar(&c.PipelineOverride, "s", "", "path to the script (default \"<input-file>.pho\")")
+		set.StringVar(&c.Script, "s", "", "path to the script (default \"<input-file>.pho\")")
 	}
 
 	fr := flags.NewRoot(os.Stdout)
