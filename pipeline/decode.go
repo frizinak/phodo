@@ -535,7 +535,7 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 		case r == 0:
 			return e, d.r.Err()
 
-		case r == '"' && !esc:
+		case r == '"' && !esc && !calc:
 			str = !str
 
 		case r == '\\' && !esc:
@@ -545,12 +545,13 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 			if d.r.ReadRune() != '{' {
 				buf = append(buf, r)
 				d.r.UnreadRune()
-				break
+				continue
 			}
 			for {
 				r = d.r.ReadRune()
 				if r == '}' {
 					key := string(varbuf)
+					varbuf = varbuf[:0]
 					val, ok := vars[key]
 					if !ok {
 						return e, fmt.Errorf("unknown variable '%s'", key)
@@ -596,8 +597,8 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 
 		case d.state.nl && r == '#' && !inc:
 			inc = true
-		case d.state.nl && inc:
-			f := string(buf[:len(buf)-1])
+		case r == '\n' && inc:
+			f := string(buf)
 			*includes = append(*includes, f)
 			buf = buf[:0]
 			inc = false
