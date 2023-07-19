@@ -133,9 +133,10 @@ func cresize(src *img48.Img, dstb image.Rectangle, kernel draw.Kernel) *img48.Im
 		clone = true
 	}
 
+	_ = clone
 	if sh != dh {
 		if clone {
-			src = ImageDiscard(dst.SubImage(image.Rect(0, 0, dw, maxh)).(*img48.Img))
+			src = ImageCopyDiscard(dst.SubImage(image.Rect(0, 0, dw, maxh)).(*img48.Img))
 		}
 		hresize(src, dst, sh, dh, kernel)
 	}
