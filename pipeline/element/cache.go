@@ -19,6 +19,10 @@ func Once(els ...pipeline.Element) pipeline.Element {
 	}
 }
 
+func CacheClear() {
+	gcache.Clear()
+}
+
 type CacheContainer struct {
 	max int
 	l   map[string]*cacheEntry
@@ -70,6 +74,10 @@ func (c *CacheContainer) Cleanup() {
 		m[string(list[i].sum)] = list[i]
 	}
 	c.l = m
+}
+
+func (c *CacheContainer) Clear() {
+	c.l = make(map[string]*cacheEntry)
 }
 
 type dummyHash struct {

@@ -142,6 +142,8 @@ func handleEdit(c *Conf, args []string) error {
 		element.Once(element.LoadFile(c.InputFile)),
 	)
 
+	var fullRefresh bool
+
 	var img *img48.Img
 	v := &edit.Viewer{}
 	quit := make(chan struct{})
@@ -150,6 +152,8 @@ func handleEdit(c *Conf, args []string) error {
 		case 'q':
 			cancel()
 			quit <- struct{}{}
+		case 'r':
+			fullRefresh = true
 		}
 	}
 
@@ -197,6 +201,8 @@ func handleEdit(c *Conf, args []string) error {
 	tShort := time.Millisecond * 20
 	tError := time.Millisecond * 1000
 
+	var fullRefreshing bool
+
 outer:
 	for {
 		select {
@@ -217,6 +223,11 @@ outer:
 		}
 
 		r := pipeline.NewDecoder(f, vars)
+		if fullRefresh {
+			fullRefreshing = true
+			element.CacheClear()
+			res = nil
+		}
 		res, err = r.Decode(res)
 		f.Close()
 		if err != nil {
@@ -231,7 +242,7 @@ outer:
 			time.Sleep(tError)
 			continue
 		}
-		if e.Cached {
+		if e.Cached && !fullRefresh {
 			time.Sleep(tShort)
 			continue
 		}
@@ -242,12 +253,18 @@ outer:
 			time.Sleep(tError)
 			continue
 		}
-
 		img = core.ImageDiscard(out)
 		v.Set(img)
 		if c.Verbose {
 			fmt.Fprintf(os.Stderr, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", time.Since(s).Round(time.Millisecond))
 		}
+
+		if fullRefreshing {
+			fmt.Fprintf(os.Stderr, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", "Refresh")
+			fullRefreshing = false
+			fullRefresh = false
+		}
+
 	}
 
 	return gerr
