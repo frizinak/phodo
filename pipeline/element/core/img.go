@@ -155,13 +155,15 @@ func imageDecode(r io.ReadSeeker, extHint string, tryRAW bool) (*img48.Img, erro
 				return nil, err
 			}
 
-			f, err := os.Open(tmp + ".tiff")
+			tif := tmp + ".tiff"
+			f, err := os.Open(tif)
 			if err != nil {
 				return nil, err
 			}
 
 			img, err := imageDecode(f, ".tif", false)
 			f.Close()
+			os.Remove(tif)
 			return img, err
 		}
 	}
