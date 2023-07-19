@@ -87,11 +87,10 @@ func (c AnkoCalc) Execute(img *img48.Img) (float64, error) {
 		return float64(v), nil
 	case int64:
 		return float64(v), nil
-	case []interface{}:
-		return 0, nil
 	}
 
-	return 0, fmt.Errorf("unknown type in calc: %T: %+v", ret, ret)
+	return 0, nil
+	// return 0, fmt.Errorf("unknown type in calc: %T: %+v", ret, ret)
 }
 
 type errReader struct {
