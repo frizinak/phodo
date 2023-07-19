@@ -10,7 +10,7 @@ integrate into my photography workflow.
 ## To do
 
 - [ ] Decently sized stdlib
-    - [ ] white-balance()
+    - [X] white-balance-spot(x y radius)
     - [ ] visualize-clipping()
     - [ ] spot removal / clone tool
     - [ ] reduce-noise()
@@ -19,7 +19,7 @@ integrate into my photography workflow.
     - [ ] dcraw
     - [ ] ...
 - [ ] More scripting options
-    - [ ] Include files
+    - [X] Include files
     - [X] math
     - [X] variables
     - [ ] defining composite elements
@@ -31,7 +31,9 @@ integrate into my photography workflow.
 ## Scripting example
 
 ```
-.a-clut(clut((load-file("cluts/a hald clut.png"))))
+.a-clut(clut(cache(load-file("cluts/a hald clut.png"))))
+
+# ${my-includes-dir}/include.pho
 
 .colors(
     rgb-multiply(0.90 0.85 1.3)
