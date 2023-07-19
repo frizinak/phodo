@@ -234,25 +234,6 @@ func runScript(c Conf, script, pipe string, vars map[string]string) error {
 		return err
 	}
 
-	// TODO
-	{
-		f2, err := os.Create("main.r.pho")
-		if err != nil {
-			return err
-		}
-
-		defer f2.Close()
-		w := pipeline.NewEncoder(f2, "    ")
-		for _, p := range res.List() {
-			if err := w.Element(p.Element); err != nil {
-				return err
-			}
-		}
-		if err := w.Flush(); err != nil {
-			return err
-		}
-	}
-
 	pl, ok := res.Get(string(pipeline.NamedPrefix) + pipe)
 	if !ok {
 		list := res.List()
