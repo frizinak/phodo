@@ -75,7 +75,7 @@ func (c canvas) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	if err != nil {
 		return img, err
 	}
-	h, err := c.width.Execute(img)
+	h, err := c.height.Execute(img)
 	if err != nil {
 		return img, err
 	}

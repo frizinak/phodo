@@ -169,7 +169,7 @@ func (r resize) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	if err != nil {
 		return img, err
 	}
-	_h, err := r.w.Execute(img)
+	_h, err := r.h.Execute(img)
 	if err != nil {
 		return img, err
 	}

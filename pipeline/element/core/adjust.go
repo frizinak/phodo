@@ -37,8 +37,7 @@ func Contrast(img *img48.Img, n float64) {
 		}
 	default:
 		for i := half; i < 1<<16; i++ {
-			l[i] = 255
-			l[1<<16+i] = 255
+			l[i] = 1<<16 - 1
 		}
 	}
 
