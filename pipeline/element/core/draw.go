@@ -37,6 +37,32 @@ func Draw(p image.Point, src, dst *img48.Img, trans func(r, g, b uint16) bool) {
 	}
 }
 
+func DrawRectangle(rect image.Rectangle, width int, src Color, dst *img48.Img) {
+	_clr := src.Color()
+	clr := _clr[:]
+	ll := func(x, y int) {
+		if x >= 0 && y >= 0 && x < dst.Rect.Max.X && y < dst.Rect.Max.Y {
+			o := y*dst.Stride + x*3
+			pix := dst.Pix[o : o+3 : o+3]
+			copy(pix, clr)
+		}
+	}
+
+	for x := rect.Min.X; x < rect.Max.X; x++ {
+		for i := 0; i < width; i++ {
+			ll(x, rect.Min.Y+i)
+			ll(x, rect.Max.Y-i-1)
+		}
+	}
+
+	for y := rect.Min.Y; y < rect.Max.Y; y++ {
+		for i := 0; i < width; i++ {
+			ll(rect.Min.X+i, y)
+			ll(rect.Max.X-i-1, y)
+		}
+	}
+}
+
 func DrawFilledCircle(p image.Point, radius int, src Color, dst *img48.Img) {
 	_clr := src.Color()
 	clr := _clr[:]

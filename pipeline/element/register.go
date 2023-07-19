@@ -23,6 +23,7 @@ func init() {
 	pipeline.Register(extend{})
 	pipeline.Register(border{})
 	pipeline.Register(circle{})
+	pipeline.Register(rectangle{})
 	pipeline.Register(clrHex{})
 	pipeline.Register(clrRGB{})
 	pipeline.Register(clrRGB16{})

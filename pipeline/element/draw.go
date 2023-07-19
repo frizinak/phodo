@@ -22,6 +22,23 @@ func Border(width int, clr Color) pipeline.Element {
 	return border{pipeline.PlainNumber(width), clr}
 }
 
+func Circle(x, y, r, border int, clr Color) pipeline.Element {
+	return circle{
+		x: pipeline.PlainNumber(x), y: pipeline.PlainNumber(y),
+		r: pipeline.PlainNumber(r), w: pipeline.PlainNumber(border),
+		clr: clr,
+	}
+}
+
+func Rectangle(x, y, w, h, border int, clr Color) pipeline.Element {
+	return rectangle{
+		x: pipeline.PlainNumber(x), y: pipeline.PlainNumber(y),
+		w: pipeline.PlainNumber(w), h: pipeline.PlainNumber(h),
+		b:   pipeline.PlainNumber(border),
+		clr: clr,
+	}
+}
+
 type border struct {
 	width pipeline.Number
 	clr   Color
@@ -63,44 +80,92 @@ func (b border) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(b.Name())
 	}
 
-	_clr := b.clr.Color()
-	clr := _clr[:]
-
-	_width, err := b.width.Execute(img)
+	w, err := b.width.Execute(img)
 	if err != nil {
 		return img, err
 	}
-	width := int(_width)
 
-	w := width
-	if w > img.Rect.Dy() {
-		w = img.Rect.Dy()
+	r := Rectangle(0, 0, img.Rect.Dx(), img.Rect.Dy(), int(w), b.clr)
+	return r.Do(ctx, img)
+}
+
+type rectangle struct {
+	x, y pipeline.Number
+	w, h pipeline.Number
+	b    pipeline.Number
+	clr  Color
+}
+
+func (rectangle) Name() string { return "rectangle" }
+func (rectangle) Inline() bool { return true }
+func (r rectangle) Encode(w pipeline.Writer) error {
+	w.Number(r.x)
+	w.Number(r.y)
+	w.Number(r.w)
+	w.Number(r.h)
+	w.Number(r.b)
+	return w.Element(r.clr)
+}
+
+func (rect rectangle) Decode(r pipeline.Reader) (pipeline.Element, error) {
+	rect.x = r.Number()
+	rect.y = r.Number()
+	rect.w = r.Number()
+	rect.h = r.Number()
+	rect.b = r.Number()
+	const max = 1<<16 - 1
+	clr, err := r.ElementDefault(RGB16(max, max, max))
+	if err != nil {
+		return rect, err
 	}
-	for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-		for i := 0; i < w; i++ {
-			o := (-img.Rect.Min.Y+0+i)*img.Stride + x*3
-			pix := img.Pix[o : o+3 : o+3]
-			copy(pix, clr)
-			o = (img.Rect.Max.Y-1-i)*img.Stride + x*3
-			pix = img.Pix[o : o+3 : o+3]
-			copy(pix, clr)
-		}
+	rect.clr = clr.(Color)
+
+	return rect, nil
+}
+
+func (r rectangle) Help() [][2]string {
+	return [][2]string{
+		{
+
+			fmt.Sprintf("%s(<x> <y> <w> <h> <border-width> [color])", r.Name()),
+			"Draws a rectangle.",
+		},
+	}
+}
+
+func (r rectangle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(r)
+
+	if img == nil {
+		return img, pipeline.NewErrNeedImageInput(r.Name())
 	}
 
-	w = width
-	if w > img.Rect.Dx() {
-		w = img.Rect.Dx()
+	_x, err := r.x.Execute(img)
+	if err != nil {
+		return img, err
 	}
-	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
-		for i := 0; i < w; i++ {
-			o := (y-img.Rect.Min.Y)*img.Stride + (img.Rect.Min.X+0+i)*3
-			pix := img.Pix[o : o+3 : o+3]
-			copy(pix, clr)
-			o = (y-img.Rect.Min.Y)*img.Stride + (img.Rect.Max.X-1-i)*3
-			pix = img.Pix[o : o+3 : o+3]
-			copy(pix, clr)
-		}
+	_y, err := r.y.Execute(img)
+	if err != nil {
+		return img, err
 	}
+	_w, err := r.w.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	_h, err := r.h.Execute(img)
+	if err != nil {
+		return img, err
+	}
+	_b, err := r.b.Execute(img)
+	if err != nil {
+		return img, err
+	}
+
+	x, y := int(_x), int(_y)
+	w, h := int(_w), int(_h)
+	b := int(_b)
+
+	core.DrawRectangle(image.Rect(x, y, x+w, y+h), b, r.clr, img)
 
 	return img, nil
 }
