@@ -63,9 +63,7 @@ func (c AnkoCalc) Execute(img *img48.Img) (float64, error) {
 		w, h := img.Rect.Dx(), img.Rect.Dy()
 		m := map[string]interface{}{
 			"width":  w,
-			"w":      w,
 			"height": h,
-			"h":      h,
 			"print":  fmt.Println,
 		}
 
