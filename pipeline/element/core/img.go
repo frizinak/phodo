@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"image"
 	"image/gif"
-	"image/jpeg"
 	"image/png"
 	"io"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"github.com/Andeling/tiff"
 	myexif "github.com/frizinak/phodo/exif"
 	"github.com/frizinak/phodo/img48"
+	"github.com/frizinak/phodo/jpeg"
 	"golang.org/x/image/bmp"
 
 	_ "image/gif"
@@ -231,7 +231,7 @@ func ImageEncode(w io.Writer, img *img48.Img, ext string, quality int) error {
 	case ".i48":
 		err = img48.Encode(w, img)
 	default:
-		err = jpeg.Encode(w, img, &jpeg.Options{Quality: quality})
+		err = jpeg.Encode48(w, img, quality)
 	}
 
 	return err
