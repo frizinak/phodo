@@ -16,7 +16,7 @@ integrate into my photography workflow.
     - [ ] reduce-noise()
     - [ ] exif add/set/delete
     - [ ] glob() / find() / exec(`find -iname '*.png'`)
-    - [ ] dcraw
+    - [X] dcraw
     - [ ] ...
 - [ ] More scripting options
     - [X] Include files
@@ -25,7 +25,11 @@ integrate into my photography workflow.
     - [ ] defining composite elements
     - [ ] ...
 - [X] EXIF input
-- [ ] EXIF output
+- [ ] EXIF Output
+    - [X] JPEG
+    - [ ] JPEG 4:4:4
+    - [ ] PNG
+    - [ ] TIFF
 - [ ] Documentation
 
 ## Scripting example
