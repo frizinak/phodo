@@ -54,7 +54,7 @@ func (i *Img) At(x, y int) color.Color {
 func (i *Img) SubImage(r image.Rectangle) image.Image {
 	r = r.Intersect(i.Rect)
 	if r.Empty() {
-		return &Img{}
+		return &Img{Exif: i.Exif}
 	}
 
 	o := (r.Min.Y-i.Rect.Min.Y)*i.Stride + (r.Min.X-i.Rect.Min.X)*3

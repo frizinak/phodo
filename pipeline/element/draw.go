@@ -336,6 +336,8 @@ func (e extend) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	r := image.Rect(0, 0, w+int(left+right), h+int(top+bottom))
 	p := image.Point{int(left), int(top)}
 	dst := img48.New(r)
+	dst.Exif = img.Exif.Clone()
+
 	core.Draw(p, img, dst, nil)
 
 	return dst, nil
