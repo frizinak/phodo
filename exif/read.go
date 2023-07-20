@@ -51,6 +51,7 @@ func tryOne(set *IFDSet, r *bufseeker, start, offset, correct int64) (int64, err
 	subs := map[uint16]struct{}{
 		0x8769: {}, // IFD/Exif
 		0x8825: {}, // IFD/GPS
+		0xA005: {}, // IFD/Interop
 	}
 	var i uint16
 	entries := &IFD{make([]*Entry, amount)}
