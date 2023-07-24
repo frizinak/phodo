@@ -80,12 +80,12 @@ func (b border) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(b.Name())
 	}
 
-	w, err := b.width.Execute(img)
+	w, err := b.width.Int(img)
 	if err != nil {
 		return img, err
 	}
 
-	r := Rectangle(0, 0, img.Rect.Dx(), img.Rect.Dy(), int(w), b.clr)
+	r := Rectangle(0, 0, img.Rect.Dx(), img.Rect.Dy(), w, b.clr)
 	return r.Do(ctx, img)
 }
 
@@ -140,30 +140,26 @@ func (r rectangle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) 
 		return img, pipeline.NewErrNeedImageInput(r.Name())
 	}
 
-	_x, err := r.x.Execute(img)
+	x, err := r.x.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_y, err := r.y.Execute(img)
+	y, err := r.y.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_w, err := r.w.Execute(img)
+	w, err := r.w.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_h, err := r.h.Execute(img)
+	h, err := r.h.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_b, err := r.b.Execute(img)
+	b, err := r.b.Int(img)
 	if err != nil {
 		return img, err
 	}
-
-	x, y := int(_x), int(_y)
-	w, h := int(_w), int(_h)
-	b := int(_b)
 
 	core.DrawRectangle(image.Rect(x, y, x+w, y+h), b, r.clr, img)
 
@@ -219,24 +215,24 @@ func (c circle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(c.Name())
 	}
 
-	x, err := c.x.Execute(img)
+	x, err := c.x.Int(img)
 	if err != nil {
 		return img, err
 	}
-	y, err := c.y.Execute(img)
+	y, err := c.y.Int(img)
 	if err != nil {
 		return img, err
 	}
-	r, err := c.r.Execute(img)
+	r, err := c.r.Int(img)
 	if err != nil {
 		return img, err
 	}
-	w, err := c.w.Execute(img)
+	w, err := c.w.Int(img)
 	if err != nil {
 		return img, err
 	}
 
-	core.DrawCircleBorder(image.Point{int(x), int(y)}, int(r), int(w), c.clr, img)
+	core.DrawCircleBorder(image.Point{x, y}, r, w, c.clr, img)
 
 	return img, nil
 }
@@ -315,26 +311,26 @@ func (e extend) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(e.Name())
 	}
 
-	top, err := e.top.Execute(img)
+	top, err := e.top.Int(img)
 	if err != nil {
 		return img, err
 	}
-	right, err := e.right.Execute(img)
+	right, err := e.right.Int(img)
 	if err != nil {
 		return img, err
 	}
-	bottom, err := e.bottom.Execute(img)
+	bottom, err := e.bottom.Int(img)
 	if err != nil {
 		return img, err
 	}
-	left, err := e.left.Execute(img)
+	left, err := e.left.Int(img)
 	if err != nil {
 		return img, err
 	}
 
 	w, h := img.Rect.Dx(), img.Rect.Dy()
-	r := image.Rect(0, 0, w+int(left+right), h+int(top+bottom))
-	p := image.Point{int(left), int(top)}
+	r := image.Rect(0, 0, w+left+right, h+top+bottom)
+	p := image.Point{left, top}
 	dst := img48.New(r)
 	dst.Exif = img.Exif.Clone()
 

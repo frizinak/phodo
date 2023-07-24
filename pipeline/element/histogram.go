@@ -123,20 +123,19 @@ func (hist HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Im
 		return img, pipeline.NewErrNeedImageInput(hist.Name())
 	}
 
-	_barWidth, err := hist.barWidth.Execute(img)
+	barWidth, err := hist.barWidth.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_w, err := hist.w.Execute(img)
+	w, err := hist.w.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_h, err := hist.h.Execute(img)
+	h, err := hist.h.Int(img)
 	if err != nil {
 		return img, err
 	}
 
-	w, h, barWidth := int(_w), int(_h), int(_barWidth)
 	if barWidth == 0 {
 		barWidth = 3
 	}

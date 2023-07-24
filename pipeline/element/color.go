@@ -134,16 +134,15 @@ func (clr clrRGB) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 }
 
 func (clr clrRGB) Color() [3]uint16 {
-
-	r, err := clr.r.Execute(nil)
+	r, err := clr.r.Int(nil)
 	if err != nil {
 		panic(err)
 	}
-	g, err := clr.g.Execute(nil)
+	g, err := clr.g.Int(nil)
 	if err != nil {
 		panic(err)
 	}
-	b, err := clr.b.Execute(nil)
+	b, err := clr.b.Int(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -188,15 +187,15 @@ func (clr clrRGB16) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error)
 }
 
 func (clr clrRGB16) Color() [3]uint16 {
-	r, err := clr.r.Execute(nil)
+	r, err := clr.r.Int(nil)
 	if err != nil {
 		panic(err)
 	}
-	g, err := clr.g.Execute(nil)
+	g, err := clr.g.Int(nil)
 	if err != nil {
 		panic(err)
 	}
-	b, err := clr.b.Execute(nil)
+	b, err := clr.b.Int(nil)
 	if err != nil {
 		panic(err)
 	}

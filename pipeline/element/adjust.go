@@ -47,7 +47,7 @@ func (c contrast) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(c.Name())
 	}
 
-	n, err := c.n.Execute(img)
+	n, err := c.n.Float64(img)
 	if err != nil {
 		return img, err
 	}
@@ -90,7 +90,7 @@ func (b brightness) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error)
 		return img, pipeline.NewErrNeedImageInput(b.Name())
 	}
 
-	n, err := b.n.Execute(img)
+	n, err := b.n.Float64(img)
 	if err != nil {
 		return img, err
 	}
@@ -133,7 +133,7 @@ func (g gamma) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(g.Name())
 	}
 
-	n, err := g.n.Execute(img)
+	n, err := g.n.Float64(img)
 	if err != nil {
 		return img, err
 	}
@@ -176,7 +176,7 @@ func (s saturation) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error)
 		return img, pipeline.NewErrNeedImageInput(s.Name())
 	}
 
-	n, err := s.n.Execute(img)
+	n, err := s.n.Float64(img)
 	if err != nil {
 		return img, err
 	}
@@ -219,7 +219,7 @@ func (b black) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(b.Name())
 	}
 
-	n, err := b.n.Execute(img)
+	n, err := b.n.Float64(img)
 	if err != nil {
 		return img, err
 	}

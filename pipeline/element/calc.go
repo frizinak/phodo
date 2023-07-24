@@ -38,7 +38,7 @@ func (c calc) Decode(r pipeline.Reader) (pipeline.Element, error) {
 }
 
 func (c calc) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
-	_, err := c.calc.Execute(img)
+	_, err := c.calc.Float64(img)
 
 	return img, err
 }

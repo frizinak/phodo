@@ -40,14 +40,19 @@ type Reader interface {
 }
 
 type Number interface {
-	Execute(img *img48.Img) (float64, error)
+	Float64(img *img48.Img) (float64, error)
+	Int(img *img48.Img) (int, error)
 	Encode(w Writer)
 }
 
 type PlainNumber float64
 
-func (pn PlainNumber) Execute(img *img48.Img) (float64, error) {
+func (pn PlainNumber) Float64(img *img48.Img) (float64, error) {
 	return float64(pn), nil
+}
+
+func (pn PlainNumber) Int(img *img48.Img) (int, error) {
+	return int(pn), nil
 }
 
 func (pn PlainNumber) Encode(w Writer) { w.Float(float64(pn)) }
@@ -59,7 +64,7 @@ type AnkoCalc struct {
 
 func (c AnkoCalc) Encode(w Writer) { w.CalcString(c.calc) }
 
-func (c AnkoCalc) Execute(img *img48.Img) (float64, error) {
+func (c AnkoCalc) execute(img *img48.Img) (float64, error) {
 	if img != nil {
 		w, h := img.Rect.Dx(), img.Rect.Dy()
 		m := map[string]interface{}{
@@ -91,6 +96,15 @@ func (c AnkoCalc) Execute(img *img48.Img) (float64, error) {
 
 	return 0, nil
 	// return 0, fmt.Errorf("unknown type in calc: %T: %+v", ret, ret)
+}
+
+func (c AnkoCalc) Float64(img *img48.Img) (float64, error) {
+	return c.execute(img)
+}
+
+func (c AnkoCalc) Int(img *img48.Img) (int, error) {
+	val, err := c.execute(img)
+	return int(val), err
 }
 
 type errReader struct {

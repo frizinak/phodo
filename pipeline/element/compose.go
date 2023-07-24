@@ -82,13 +82,12 @@ type Point struct {
 
 func (p Point) Execute(img *img48.Img) (image.Point, error) {
 	var pt image.Point
-	x, err := p.X.Execute(img)
-	pt.X = int(x)
+	var err error
+	pt.X, err = p.X.Int(img)
 	if err != nil {
 		return pt, err
 	}
-	y, err := p.Y.Execute(img)
-	pt.Y = int(y)
+	pt.Y, err = p.Y.Int(img)
 	return pt, err
 }
 

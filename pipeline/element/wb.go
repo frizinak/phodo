@@ -63,20 +63,18 @@ func (rgb rgbAdd) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(rgb.Name())
 	}
 
-	_r, err := rgb.r.Execute(img)
+	r, err := rgb.r.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_g, err := rgb.g.Execute(img)
+	g, err := rgb.g.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_b, err := rgb.b.Execute(img)
+	b, err := rgb.b.Int(img)
 	if err != nil {
 		return img, err
 	}
-
-	r, g, b := int(_r), int(_g), int(_b)
 
 	core.RGBAdd(img, r, g, b)
 
@@ -122,15 +120,15 @@ func (rgb rgbMul) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(rgb.Name())
 	}
 
-	r, err := rgb.r.Execute(img)
+	r, err := rgb.r.Float64(img)
 	if err != nil {
 		return img, err
 	}
-	g, err := rgb.g.Execute(img)
+	g, err := rgb.g.Float64(img)
 	if err != nil {
 		return img, err
 	}
-	b, err := rgb.b.Execute(img)
+	b, err := rgb.b.Float64(img)
 	if err != nil {
 		return img, err
 	}
@@ -182,20 +180,18 @@ func (wb whiteBalanceSpot) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img,
 		return img, pipeline.NewErrNeedImageInput(wb.Name())
 	}
 
-	_x, err := wb.x.Execute(img)
+	cx, err := wb.x.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_y, err := wb.y.Execute(img)
+	cy, err := wb.y.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_r, err := wb.r.Execute(img)
+	radius, err := wb.r.Int(img)
 	if err != nil {
 		return img, err
 	}
-
-	cx, cy := int(_x), int(_y)
 
 	var r, g, b uint64
 	var n uint64
@@ -235,7 +231,7 @@ func (wb whiteBalanceSpot) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img,
 		}
 	}
 
-	x := int(_r)
+	x := radius
 	y := 0
 	e := 0
 

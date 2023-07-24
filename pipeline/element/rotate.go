@@ -82,11 +82,10 @@ func (r rotate) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(r.Name())
 	}
 
-	_n, err := r.n.Execute(img)
+	n, err := r.n.Int(img)
 	if err != nil {
 		return img, err
 	}
-	n := int(_n)
 
 	if n < -3 || n > 3 {
 		ctx.Warn(r, fmt.Sprintf("a rotation of '%d' and '%d' are equivalent", n, n%4))

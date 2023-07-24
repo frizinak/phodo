@@ -69,7 +69,7 @@ func (c clut) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(c.Name())
 	}
 
-	amount, err := c.amount.Execute(img)
+	amount, err := c.amount.Float64(img)
 	if err != nil {
 		return img, err
 	}

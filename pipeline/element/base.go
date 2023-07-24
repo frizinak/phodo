@@ -71,16 +71,16 @@ func (c canvas) Help() [][2]string {
 func (c canvas) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	ctx.Mark(c)
 
-	w, err := c.width.Execute(img)
+	w, err := c.width.Int(img)
 	if err != nil {
 		return img, err
 	}
-	h, err := c.height.Execute(img)
+	h, err := c.height.Int(img)
 	if err != nil {
 		return img, err
 	}
 
-	return img48.New(image.Rect(0, 0, int(w), int(h))), nil
+	return img48.New(image.Rect(0, 0, w, h)), nil
 }
 
 type imgStatic struct {

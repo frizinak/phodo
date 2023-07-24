@@ -165,16 +165,14 @@ func (r resize) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(r.Name())
 	}
 
-	_w, err := r.w.Execute(img)
+	w, err := r.w.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_h, err := r.h.Execute(img)
+	h, err := r.h.Int(img)
 	if err != nil {
 		return img, err
 	}
-
-	w, h := int(_w), int(_h)
 
 	return core.ImageResize(img, kernels[r.kernel], r.opts, w, h), nil
 }
@@ -219,24 +217,23 @@ func (c crop) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(c.Name())
 	}
 
-	_w, err := c.w.Execute(img)
+	w, err := c.w.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_h, err := c.h.Execute(img)
+	h, err := c.h.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_x, err := c.x.Execute(img)
+	x, err := c.x.Int(img)
 	if err != nil {
 		return img, err
 	}
-	_y, err := c.y.Execute(img)
+	y, err := c.y.Int(img)
 	if err != nil {
 		return img, err
 	}
 
-	w, h, x, y := int(_w), int(_h), int(_x), int(_y)
 	if w == -1 {
 		w = img.Rect.Dx()
 	}

@@ -110,7 +110,7 @@ func (x exif) Decode(r pipeline.Reader) (pipeline.Element, error) {
 func (x exif) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	addr := make([]uint16, 0, 4)
 	for _, n := range x.arr {
-		v, err := n.Execute(img)
+		v, err := n.Int(img)
 		if err != nil {
 			return img, err
 		}

@@ -162,12 +162,12 @@ func (s saver) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		s.ext = strings.ToLower(filepath.Ext(s.file))
 	}
 
-	q, err := s.q.Execute(img)
+	q, err := s.q.Int(img)
 	if err != nil {
 		return img, err
 	}
 
-	err = core.ImageEncode(w, img, s.ext, int(q))
+	err = core.ImageEncode(w, img, s.ext, q)
 	if err = cl(err); err != nil {
 		return img, err
 	}
