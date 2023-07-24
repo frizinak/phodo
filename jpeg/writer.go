@@ -456,7 +456,7 @@ type Options struct {
 	Quality int
 }
 
-// Encode writes the Image m to w in JPEG 4:2:0 baseline format with the given
+// Encode writes the Image m to w in JPEG 4:4:4 baseline format with the given
 // options. Default parameters are used if a nil *Options is passed.
 func Encode(w io.Writer, m image.Image, o *Options) error {
 	b := m.Bounds()

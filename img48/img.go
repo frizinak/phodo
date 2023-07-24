@@ -8,7 +8,7 @@ import (
 	"math"
 
 	"github.com/frizinak/phodo/exif"
-	jpeg "github.com/frizinak/phodo/stdjpeg"
+	"github.com/frizinak/phodo/jpeg"
 )
 
 var _ jpeg.Blocker = &Img{}

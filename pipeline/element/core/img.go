@@ -231,7 +231,7 @@ func ImageEncode(w io.Writer, img *img48.Img, ext string, quality int) error {
 	case ".i48":
 		err = img48.Encode(w, img)
 	default:
-		err = jpeg.Encode48(w, img, quality)
+		err = jpeg.EncodeWithExif(w, img, img.Exif, quality)
 	}
 
 	return err

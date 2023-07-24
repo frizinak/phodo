@@ -9,23 +9,17 @@ import (
 	"io"
 
 	"github.com/frizinak/phodo/exif"
-	"github.com/frizinak/phodo/img48"
-	stdjpeg "github.com/frizinak/phodo/stdjpeg"
 )
 
-func Encode(w io.Writer, img image.Image, ex *exif.Exif, quality int) error {
-	return stdjpeg.Encode(
-		&writer{w: w, exif: ex},
+func EncodeWithExif(w io.Writer, img image.Image, ex *exif.Exif, quality int) error {
+	return Encode(
+		&jwriter{w: w, exif: ex},
 		img,
-		&stdjpeg.Options{Quality: quality},
+		&Options{Quality: quality},
 	)
 }
 
-func Encode48(w io.Writer, img *img48.Img, quality int) error {
-	return Encode(w, img, img.Exif, quality)
-}
-
-type writer struct {
+type jwriter struct {
 	w    io.Writer
 	exif *exif.Exif
 
@@ -38,7 +32,7 @@ type writer struct {
 	startOffset uint32
 }
 
-func (w *writer) Write(b []byte) (n int, err error) {
+func (w *jwriter) Write(b []byte) (n int, err error) {
 	if w.startOffset == 0 {
 		w.buf = append(w.buf, b...)
 
