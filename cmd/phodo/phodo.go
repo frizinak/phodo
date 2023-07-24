@@ -347,7 +347,7 @@ func runScript(c *Conf, vars map[string]string) error {
 	line.Add(pl.Element)
 
 	if c.OutputFile != "" {
-		line.Add(element.SaveFile(c.OutputFile, 100))
+		line.Add(element.SaveFile(c.OutputFile, 92))
 	}
 
 	ctx := pipeline.NewContext(c.Verbose, context.Background())

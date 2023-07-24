@@ -6,19 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/jpeg"
-	stdjpeg "image/jpeg"
 	"io"
 
 	"github.com/frizinak/phodo/exif"
 	"github.com/frizinak/phodo/img48"
+	stdjpeg "github.com/frizinak/phodo/stdjpeg"
 )
 
 func Encode(w io.Writer, img image.Image, ex *exif.Exif, quality int) error {
 	return stdjpeg.Encode(
 		&writer{w: w, exif: ex},
 		img,
-		&jpeg.Options{Quality: quality},
+		&stdjpeg.Options{Quality: quality},
 	)
 }
 

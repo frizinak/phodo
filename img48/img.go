@@ -4,10 +4,15 @@ import (
 	"errors"
 	"image"
 	"image/color"
+	"image/draw"
 	"math"
 
 	"github.com/frizinak/phodo/exif"
+	jpeg "github.com/frizinak/phodo/stdjpeg"
 )
+
+var _ jpeg.Blocker = &Img{}
+var _ draw.Image = &Img{}
 
 type Img struct {
 	Exif   *exif.Exif
@@ -63,6 +68,46 @@ func (i *Img) SubImage(r image.Rectangle) image.Image {
 		Pix:    i.Pix[o:],
 		Stride: i.Stride,
 		Rect:   r,
+	}
+}
+
+func (img *Img) YCbCrBlock8(x, y int, Y, Cb, Cr *jpeg.Block) {
+	clamp := func(v int) int {
+		if v < 0 {
+			return 0
+		}
+		if v > 1<<8-1 {
+			return 1<<8 - 1
+		}
+
+		return v
+	}
+	xmax := img.Rect.Max.X - 1
+	ymax := img.Rect.Max.Y - 1
+	for j := 0; j < 8; j++ {
+		sj := y + j
+		if sj > ymax {
+			sj = ymax
+		}
+		o_ := (sj-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*3
+		for i := 0; i < 8; i++ {
+			sx := x + i
+			if sx > xmax {
+				sx = xmax
+			}
+			o := o_ + sx*3
+			r, g, b := int(img.Pix[o+0]), int(img.Pix[o+1]), int(img.Pix[o+2])
+			y := (19595*r + 38470*g + 7471*b + 1<<15) >> 24
+			cb := (-11056*r - 21712*g + 32768*b + 1<<15) >> 24
+			cr := (32768*r - 27440*g - 5328*b + 1<<15) >> 24
+
+			y = clamp(y)
+			cb = clamp(cb + 128)
+			cr = clamp(cr + 128)
+			Y[8*j+i] = int32(y)
+			Cb[8*j+i] = int32(cb)
+			Cr[8*j+i] = int32(cr)
+		}
 	}
 }
 
