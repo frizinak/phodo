@@ -20,6 +20,9 @@ func init() {
 	pipeline.Register(cpy{})
 	pipeline.Register(canvas{})
 
+	pipeline.Register(exif{typ: exifDel})
+	pipeline.Register(exif{typ: exifAllow})
+
 	pipeline.Register(extend{})
 	pipeline.Register(border{})
 	pipeline.Register(circle{})
