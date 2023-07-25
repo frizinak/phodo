@@ -42,6 +42,9 @@ func init() {
 	pipeline.Register(cache{})
 
 	pipeline.Register(or{})
+	pipeline.Register(modeOnly{mode: pipeline.ModeConvert})
+	pipeline.Register(modeOnly{mode: pipeline.ModeScript})
+	pipeline.Register(modeOnly{mode: pipeline.ModeEdit})
 
 	pipeline.Register(calc{})
 

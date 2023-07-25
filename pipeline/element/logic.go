@@ -50,6 +50,8 @@ func (or or) Decode(r pipeline.Reader) (pipeline.Element, error) {
 }
 
 func (or or) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(or)
+
 	var i *img48.Img
 	var err error
 	for _, e := range or.list {
@@ -59,4 +61,84 @@ func (or or) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		}
 	}
 	return img, err
+}
+
+var modeName = map[pipeline.Mode]string{
+	pipeline.ModeConvert: "convert-only",
+	pipeline.ModeScript:  "script-only",
+	pipeline.ModeEdit:    "edit-only",
+}
+
+type modeOnly struct {
+	mode pipeline.Mode
+	list []pipeline.Element
+}
+
+func (e modeOnly) Name() string {
+	v, ok := modeName[e.mode]
+	if !ok {
+		panic("invalid mode")
+	}
+	return v
+}
+
+func (e modeOnly) Inline() bool { return true }
+
+func (e modeOnly) Help() [][2]string {
+	h := [][2]string{
+		{
+			fmt.Sprintf("%s([element1] [element2] ...[elementN])", e.Name()),
+			"Creates a pipeline out if its arguments that is only executed",
+		},
+	}
+	switch e.mode {
+	case pipeline.ModeConvert:
+		return append(h, [2]string{
+			"",
+			"during `phodo do`",
+		})
+	case pipeline.ModeScript:
+		return append(h, [2]string{
+			"",
+			"during `phodo script`",
+		})
+	case pipeline.ModeEdit:
+		return append(h, [2]string{
+			"",
+			"during `phodo edit`",
+		})
+	}
+
+	return nil
+}
+
+func (e modeOnly) Encode(w pipeline.Writer) error {
+	for _, el := range e.list {
+		if err := w.Element(el); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (e modeOnly) Decode(r pipeline.Reader) (pipeline.Element, error) {
+	e.list = make([]pipeline.Element, r.Len())
+	for i := 0; i < r.Len(); i++ {
+		el, err := r.Element()
+		if err != nil {
+			return nil, err
+		}
+		e.list[i] = el
+	}
+
+	return e, nil
+}
+
+func (e modeOnly) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	if ctx.Mode() != e.mode {
+		return img, nil
+	}
+
+	return pipeline.New(e.list...).Do(ctx, img)
 }

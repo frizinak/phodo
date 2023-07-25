@@ -8,18 +8,28 @@ import (
 	"time"
 )
 
+type Mode uint8
+
+const (
+	ModeConvert Mode = iota
+	ModeScript
+	ModeEdit
+)
+
 type Context interface {
 	context.Context
 	Mark(Element, ...string)
 	Warn(Element, ...string)
+	Mode() Mode
 }
 
-func NewContext(verbose bool, ctx context.Context) *SimpleContext {
-	return &SimpleContext{verbose: verbose, Context: ctx}
+func NewContext(verbose bool, mode Mode, ctx context.Context) *SimpleContext {
+	return &SimpleContext{verbose: verbose, mode: mode, Context: ctx}
 }
 
 type SimpleContext struct {
 	verbose bool
+	mode    Mode
 	context.Context
 	e    string
 	t    time.Time
@@ -67,3 +77,5 @@ func (s *SimpleContext) Warn(e Element, msg ...string) {
 		strings.Join(msg, " "),
 	)
 }
+
+func (s *SimpleContext) Mode() Mode { return s.mode }

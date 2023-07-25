@@ -137,7 +137,7 @@ func handleEdit(c *Conf, args []string) error {
 	}
 
 	ictx, cancel := context.WithCancel(context.Background())
-	ctx := pipeline.NewContext(c.Verbose, ictx)
+	ctx := pipeline.NewContext(c.Verbose, pipeline.ModeEdit, ictx)
 	load := pipeline.New(
 		element.Once(element.LoadFile(c.InputFile)),
 	)
@@ -294,7 +294,7 @@ func handleDo(c *Conf, args []string) error {
 		return err
 	}
 
-	return runScript(c, vars)
+	return runScript(c, pipeline.ModeConvert, vars)
 }
 
 func handleScript(c *Conf, args []string) error {
@@ -313,10 +313,10 @@ func handleScript(c *Conf, args []string) error {
 		return err
 	}
 
-	return runScript(c, vars)
+	return runScript(c, pipeline.ModeScript, vars)
 }
 
-func runScript(c *Conf, vars map[string]string) error {
+func runScript(c *Conf, mode pipeline.Mode, vars map[string]string) error {
 	f, err := os.Open(c.Script)
 	if err != nil {
 		return fmt.Errorf("failed to open pipeline scipt: %s: '%w'", c.Script, err)
@@ -355,7 +355,7 @@ func runScript(c *Conf, vars map[string]string) error {
 		line.Add(element.SaveFile(c.OutputFile, 92))
 	}
 
-	ctx := pipeline.NewContext(c.Verbose, context.Background())
+	ctx := pipeline.NewContext(c.Verbose, mode, context.Background())
 	_, err = line.Do(ctx, nil)
 
 	return err
