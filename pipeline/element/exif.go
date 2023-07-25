@@ -9,12 +9,6 @@ import (
 	"github.com/frizinak/phodo/pipeline"
 )
 
-func init() {
-	for k, v := range exifName {
-		exifType[v] = k
-	}
-}
-
 func ExifDel(path ...uint16) pipeline.Element {
 	e := exif{typ: exifDel}
 	e.arr = make([]pipeline.Number, len(path))
@@ -47,8 +41,6 @@ var exifName = map[uint8]string{
 	exifDel:   "exif-delete",
 	exifAllow: "exif-allow",
 }
-
-var exifType = map[string]uint8{}
 
 func (x exif) Name() string {
 	v, ok := exifName[x.typ]
@@ -90,12 +82,6 @@ func (x exif) Encode(w pipeline.Writer) error {
 }
 
 func (x exif) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	var ok bool
-	x.typ, ok = exifType[r.Name()]
-	if !ok {
-		panic("invalid exif type")
-	}
-
 	for n := 0; n < r.Len(); n++ {
 		x.arr = append(x.arr, r.Number())
 	}

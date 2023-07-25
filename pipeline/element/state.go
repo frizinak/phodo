@@ -8,12 +8,6 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-func init() {
-	for k, v := range stateName {
-		stateType[v] = k
-	}
-}
-
 func StateSave(name string) pipeline.Element       { return gstate.Save(name) }
 func StateSaveNoCopy(name string) pipeline.Element { return gstate.SaveNoCopy(name) }
 func StateLoad(name string) pipeline.Element       { return gstate.Load(name) }
@@ -65,8 +59,6 @@ var stateName = map[uint8]string{
 	stateRestore: "load",
 	stateDiscard: "discard",
 }
-
-var stateType = map[string]uint8{}
 
 type state struct {
 	img *img48.Img
@@ -128,12 +120,6 @@ func (s stateElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	}
 
 	s.s = gstate.l[s.name]
-
-	var ok bool
-	s.typ, ok = stateType[r.Name()]
-	if !ok {
-		panic("invalid state type")
-	}
 	return s, nil
 }
 
