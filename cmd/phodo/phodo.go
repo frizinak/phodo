@@ -146,8 +146,9 @@ func handleEdit(c *Conf, args []string) error {
 
 	var img *img48.Img
 	v := &edit.Viewer{}
+	var conf edit.Config
 	quit := make(chan struct{})
-	onkey := func(r rune) {
+	conf.OnKey = func(r rune) {
 		switch r {
 		case 'q':
 			cancel()
@@ -157,7 +158,7 @@ func handleEdit(c *Conf, args []string) error {
 		}
 	}
 
-	onclick := func(x, y int) {
+	conf.OnClick = func(x, y int) {
 		if img == nil {
 			return
 		}
@@ -190,7 +191,7 @@ func handleEdit(c *Conf, args []string) error {
 	var gerr error
 	done := make(chan struct{})
 	go func() {
-		if err := v.Run(quit, onkey, onclick); err != nil {
+		if err := v.Run(conf, quit); err != nil {
 			gerr = err
 		}
 		done <- struct{}{}
@@ -247,7 +248,11 @@ outer:
 			continue
 		}
 
-		out, err := pipeline.New(load, e.Element).Do(ctx, nil)
+		out, err := pipeline.New(
+			load,
+			e.Element,
+		).Do(ctx, nil)
+
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			time.Sleep(tError)

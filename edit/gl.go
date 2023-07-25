@@ -177,16 +177,15 @@ func initialize() (*glfw.Window, error) {
 }
 
 type Viewer struct {
-	window                             *glfw.Window
-	monitor                            *glfw.Monitor
-	videoMode                          *glfw.VidMode
-	windowX, windowY, windowW, windowH int
+	window    *glfw.Window
+	monitor   *glfw.Monitor
+	videoMode *glfw.VidMode
 
 	sem   sync.Mutex
 	img   *img48.Img
 	inval bool
 
-	realWidth, realHeight int
+	width, height int
 
 	proj mgl32.Mat4
 
@@ -201,8 +200,7 @@ type Viewer struct {
 		scale      float64
 	}
 
-	onkey   func(rune)
-	onclick func(x, y int)
+	c Config
 }
 
 func (v *Viewer) onCursor(w *glfw.Window, x, y float64) {
@@ -229,25 +227,21 @@ func (v *Viewer) reportCursor() {
 	x := int(math.Round(rx))
 	y := int(math.Round(ry))
 	if x > 0 && y > 0 && x <= v.pos.maxX && y < v.pos.maxY {
-		v.onclick(x, y)
+		v.c.OnClick(x, y)
 	}
 }
 
 func (v *Viewer) onText(w *glfw.Window, char rune) {
-	if v.onkey != nil {
-		v.onkey(char)
-	}
+	v.c.OnKey(char)
 }
 
 func (v *Viewer) onResize(wnd *glfw.Window, width, height int) {
-	v.realWidth, v.realHeight = width, height
+	v.width, v.height = width, height
 	gl.Viewport(0, 0, int32(width), int32(height))
 	v.proj = mgl32.Ortho2D(0, float32(width), float32(height), 0)
-	v.windowW, v.windowH = width, height
-}
-
-func (v *Viewer) onPos(wnd *glfw.Window, x, y int) {
-	v.windowX, v.windowY = x, y
+	if v.c.OnResize != nil {
+		v.c.OnResize(width, height)
+	}
 }
 
 func (v *Viewer) run() error {
@@ -262,8 +256,6 @@ func (v *Viewer) run() error {
 	}
 	v.monitor = glfw.GetPrimaryMonitor()
 	v.videoMode = v.monitor.GetVideoMode()
-	v.windowX, v.windowY = v.window.GetPos()
-	v.windowW, v.windowH = v.window.GetSize()
 	v.proj = mgl32.Ortho2D(0, 800, 800, 0)
 
 	if err := gl.Init(); err != nil {
@@ -271,15 +263,13 @@ func (v *Viewer) run() error {
 	}
 
 	v.window.SetFramebufferSizeCallback(v.onResize)
-	v.window.SetPosCallback(v.onPos)
-	v.window.SetCharCallback(v.onText)
-	if v.onclick != nil {
+	if v.c.OnKey != nil {
+		v.window.SetCharCallback(v.onText)
+	}
+	if v.c.OnClick != nil {
 		v.window.SetCursorPosCallback(v.onCursor)
 		v.window.SetMouseButtonCallback(v.onClick)
 	}
-
-	w, h := v.window.GetFramebufferSize()
-	v.onResize(v.window, w, h)
 
 	program, err := newProgram()
 	if err != nil {
@@ -345,7 +335,7 @@ func (v *Viewer) run() error {
 			bounds = image.Point{v.img.Rect.Dx(), v.img.Rect.Dy()}
 			if bounds.X != 0 && bounds.Y != 0 {
 				rat := float64(bounds.X) / float64(bounds.Y)
-				rw, rh := v.realWidth, v.realHeight
+				rw, rh := v.width, v.height
 				if rw > bounds.X {
 					rw = bounds.X
 				}
@@ -409,8 +399,8 @@ func (v *Viewer) run() error {
 		}
 
 		if recenter {
-			v.pos.x = v.realWidth/2 - lastBounds.X/2
-			v.pos.y = v.realHeight/2 - lastBounds.Y/2
+			v.pos.x = v.width/2 - lastBounds.X/2
+			v.pos.y = v.height/2 - lastBounds.Y/2
 			v.pos.scale = 0
 			if bounds.X != 0 && v.img != nil {
 				v.pos.maxX = v.img.Rect.Dx()
