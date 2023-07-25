@@ -14,7 +14,8 @@ integrate into my photography workflow.
     - [ ] visualize-clipping()
     - [ ] spot removal / clone tool
     - [ ] reduce-noise()
-    - [ ] exif add/set/delete
+    - [ ] exif add/set
+    - [X] exif delete / allowlist
     - [ ] glob() / find() / exec(`find -iname '*.png'`)
     - [X] dcraw
     - [ ] ...
@@ -27,7 +28,7 @@ integrate into my photography workflow.
 - [X] EXIF input
 - [ ] EXIF Output
     - [X] JPEG
-    - [ ] JPEG 4:4:4
+    - [X] JPEG 4:4:4
     - [ ] PNG
     - [ ] TIFF
 - [ ] Documentation
