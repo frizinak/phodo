@@ -328,7 +328,6 @@ func runScript(c *Conf, mode pipeline.Mode, vars map[string]string) error {
 		return err
 	}
 
-	pl, ok := res.Get(string(pipeline.NamedPrefix) + pipe)
 
 	pl, ok := res.Get(string(pipeline.NamedPrefix) + c.Pipeline)
 	if !ok {
