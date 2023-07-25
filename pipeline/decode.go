@@ -266,11 +266,6 @@ func (e *entry) NumberDefault(def float64) Number {
 func (e *entry) String() string                  { return e.string(nil) }
 func (e *entry) StringDefault(def string) string { return e.string(&def) }
 
-// func (e *entry) Int() int                         { return e.int(nil) }
-// func (e *entry) IntDefault(def int) int           { return e.int(&def) }
-// func (e *entry) Float() float64                   { return e.float(nil) }
-// func (e *entry) FloatDefault(def float64) float64 { return e.float(&def) }
-
 func (e *entry) string(def *string) string {
 	val := e.ix().value
 	if val == "" && def != nil {
