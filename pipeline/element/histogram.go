@@ -18,7 +18,12 @@ func init() {
 }
 
 func Histogram() HistogramElement {
-	return HistogramElement{output: 0}
+	return HistogramElement{
+		output:   0,
+		barWidth: pipeline.PlainNumber(0),
+		w:        pipeline.PlainNumber(0),
+		h:        pipeline.PlainNumber(0),
+	}
 }
 
 type HistogramElement struct {
@@ -136,14 +141,14 @@ func (hist HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Im
 		return img, err
 	}
 
-	if barWidth == 0 {
+	if barWidth <= 0 {
 		barWidth = 3
 	}
-	if w == 0 {
+	if w <= 0 {
 		w = 512
 	}
 
-	if h == 0 {
+	if h <= 0 {
 		h = 256
 	}
 

@@ -11,6 +11,10 @@ func Or(el ...pipeline.Element) pipeline.Element {
 	return or{list: el}
 }
 
+func Tee(elements ...pipeline.Element) pipeline.Element {
+	return teeElement{p: pipeline.New(elements...)}
+}
+
 type or struct {
 	list []pipeline.Element
 }
@@ -141,4 +145,34 @@ func (e modeOnly) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	}
 
 	return pipeline.New(e.list...).Do(ctx, img)
+}
+
+type teeElement struct {
+	p *pipeline.Pipeline
+}
+
+func (teeElement) Name() string { return "tee" }
+
+func (tee teeElement) Help() [][2]string {
+	return [][2]string{
+		{
+			fmt.Sprintf("%s([element1] [element2] ...[elementN]", tee.Name()),
+			"Creates a new pipeline branching of the main pipeline.",
+		},
+	}
+}
+
+func (tee teeElement) Encode(w pipeline.Writer) error {
+	return tee.p.Encode(w)
+}
+
+func (tee teeElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
+	p, err := (&pipeline.Pipeline{}).Decode(r)
+	tee.p = p.(*pipeline.Pipeline)
+	return tee, err
+}
+
+func (tee teeElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	_, err := tee.p.Do(ctx, img)
+	return img, err
 }

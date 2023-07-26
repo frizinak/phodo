@@ -42,6 +42,7 @@ func init() {
 	pipeline.Register(cache{})
 
 	pipeline.Register(or{})
+	pipeline.Register(teeElement{pipeline.New()})
 	pipeline.Register(modeOnly{mode: pipeline.ModeConvert})
 	pipeline.Register(modeOnly{mode: pipeline.ModeScript})
 	pipeline.Register(modeOnly{mode: pipeline.ModeEdit})

@@ -134,6 +134,10 @@ func Black(img *img48.Img, n float64) {
 	const m = 1<<16 - 1
 
 	start := n * m
+	if start < 0 {
+		start = 0
+	}
+
 	rng := m - start
 	for i := int(start); i <= m; i++ {
 		l[i] = uint16((float64(i) - start) * m / rng)

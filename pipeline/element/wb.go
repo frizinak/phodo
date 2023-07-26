@@ -24,6 +24,14 @@ func RGBMul(r, g, b float64) pipeline.Element {
 	}
 }
 
+func WhiteBalanceSpot(x, y, r int) pipeline.Element {
+	return whiteBalanceSpot{
+		x: pipeline.PlainNumber(x),
+		y: pipeline.PlainNumber(y),
+		r: pipeline.PlainNumber(r),
+	}
+}
+
 type rgbAdd struct{ r, g, b pipeline.Number }
 
 func (rgbAdd) Name() string { return "rgb-add" }
@@ -222,6 +230,9 @@ func (wb whiteBalanceSpot) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img,
 		o := y * img.Stride
 		o1 := o + x1*3
 		o2 := o + x2*3
+		if o2 >= len(img.Pix) {
+			return
+		}
 		pix := img.Pix[o1 : o2+3 : o2+3]
 		for i := 0; i < len(pix); i += 3 {
 			n++

@@ -8,7 +8,9 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-func CLUT(e pipeline.Element) pipeline.Element { return clut{e: e} }
+func CLUT(e pipeline.Element, amount float64) pipeline.Element {
+	return clut{e: e, amount: pipeline.PlainNumber(amount)}
+}
 
 type clut struct {
 	e      pipeline.Element

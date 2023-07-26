@@ -9,12 +9,12 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-func NewPos(e pipeline.Element, coords image.Point) Pos {
-	return Pos{e, Point{X: pipeline.PlainNumber(coords.X), Y: pipeline.PlainNumber(coords.Y)}}
+func NewPos(x, y int, e pipeline.Element) Pos {
+	return Pos{e, Point{X: pipeline.PlainNumber(x), Y: pipeline.PlainNumber(y)}}
 }
 
-func NewPosTransparent(e pipeline.Element, coords image.Point, trans Color) PosTransparent {
-	return PosTransparent{Pos: NewPos(e, coords), clr: trans, _clr: trans.Color()}
+func NewPosTransparent(x, y int, e pipeline.Element, trans Color) PosTransparent {
+	return PosTransparent{Pos: NewPos(x, y, e), clr: trans, _clr: trans.Color()}
 }
 
 func Compose(in ...Positionable) pipeline.Element {

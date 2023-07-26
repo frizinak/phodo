@@ -2,14 +2,12 @@ package pipeline
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/frizinak/phodo/img48"
 )
 
 func init() {
-	Register(Pipeline{})
-	Register(teeElement{})
+	Register(&Pipeline{})
 }
 
 type ErrNeedImageInput struct{ who string }
@@ -43,7 +41,6 @@ type Element interface {
 
 type Pipeline struct {
 	name   string
-	m      sync.Mutex
 	line   []Element
 	result struct {
 		img *img48.Img
@@ -53,19 +50,12 @@ type Pipeline struct {
 
 func New(elements ...Element) *Pipeline { return mk(elements) }
 
-func Tee(elements ...Element) Element {
-	pipe := mk(elements)
-	return teeElement{p: pipe}
-}
-
 func mk(els []Element) *Pipeline {
 	return &Pipeline{line: els}
 }
 
 func (p *Pipeline) Add(e Element) *Pipeline {
-	p.m.Lock()
 	p.add(e)
-	p.m.Unlock()
 	return p
 }
 
@@ -81,14 +71,14 @@ func (p *Pipeline) SetName(name string) {
 	p.name = string(NamedPrefix) + name
 }
 
-func (p Pipeline) Name() string {
+func (p *Pipeline) Name() string {
 	if p.name == "" {
 		return anonPipeline
 	}
 	return p.name
 }
 
-func (p Pipeline) Help() [][2]string {
+func (p *Pipeline) Help() [][2]string {
 	return [][2]string{
 		{
 			"([element1] [element2] ...[elementN])",
@@ -111,9 +101,6 @@ func (p Pipeline) Help() [][2]string {
 }
 
 func (p *Pipeline) Do(ctx Context, img *img48.Img) (*img48.Img, error) {
-	p.m.Lock()
-	defer p.m.Unlock()
-
 	if img != nil {
 		p.result.img = img
 	}
@@ -139,9 +126,6 @@ func (p *Pipeline) Do(ctx Context, img *img48.Img) (*img48.Img, error) {
 }
 
 func (p *Pipeline) Encode(w Writer) error {
-	p.m.Lock()
-	defer p.m.Unlock()
-
 	for _, e := range p.line {
 		if err := w.Element(e); err != nil {
 			return err
@@ -150,7 +134,7 @@ func (p *Pipeline) Encode(w Writer) error {
 	return nil
 }
 
-func (p Pipeline) Decode(r Reader) (Element, error) {
+func (p *Pipeline) Decode(r Reader) (Element, error) {
 	name := r.Name()
 	if name[0] == NamedPrefix {
 		name = name[1:]
@@ -170,34 +154,4 @@ func (p Pipeline) Decode(r Reader) (Element, error) {
 	pipe.SetName(name)
 	return pipe, nil
 
-}
-
-type teeElement struct {
-	p *Pipeline
-}
-
-func (teeElement) Name() string { return "tee" }
-
-func (t teeElement) Help() [][2]string {
-	return [][2]string{
-		{
-			fmt.Sprintf("%s([element1] [element2] ...[elementN]", t.Name()),
-			"Creates a new pipeline branching of the main pipeline.",
-		},
-	}
-}
-
-func (tee teeElement) Encode(w Writer) error {
-	return tee.p.Encode(w)
-}
-
-func (tee teeElement) Decode(r Reader) (Element, error) {
-	p, err := Pipeline{}.Decode(r)
-	tee.p = p.(*Pipeline)
-	return tee, err
-}
-
-func (t teeElement) Do(ctx Context, img *img48.Img) (*img48.Img, error) {
-	_, err := t.p.Do(ctx, img)
-	return img, err
 }

@@ -93,6 +93,9 @@ func DrawFilledCircle(p image.Point, radius int, src Color, dst *img48.Img) {
 		o := y * dst.Stride
 		o1 := o + x1*3
 		o2 := o + x2*3
+		if o2 >= len(dst.Pix) {
+			return
+		}
 		pix := dst.Pix[o1 : o2+3 : o2+3]
 		for n := 0; n < len(pix); n += 3 {
 			copy(pix[n:n+3:n+3], clr)
@@ -154,6 +157,9 @@ func DrawCircle(p image.Point, radius int, src Color, dst *img48.Img) {
 
 		o_ := y * dst.Stride
 		o := o_ + x*3
+		if o >= len(dst.Pix) {
+			return
+		}
 		copy(dst.Pix[o:o+3:o+3], clr)
 	}
 
