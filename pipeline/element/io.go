@@ -16,18 +16,27 @@ import (
 func Load(r io.ReadSeeker) pipeline.Element { return loader{r: r} }
 func LoadFile(path string) pipeline.Element { return loader{file: path} }
 func Save(w io.Writer, ext string, quality int) pipeline.Element {
-	ext = strings.ToLower(ext)
-	if len(ext) == 0 || ext[0] != '.' {
-		ext = "." + ext
+	return saver{
+		w:   w,
+		ext: normalizeExt(ext),
+		q:   pipeline.PlainNumber(quality),
 	}
-	return saver{w: w, ext: ext, q: pipeline.PlainNumber(quality)}
 }
 
-func SaveFile(path string, quality int) pipeline.Element {
+func SaveFile(path string, extOverride string, quality int) pipeline.Element {
 	return saver{
 		file: path,
+		ext:  normalizeExt(extOverride),
 		q:    pipeline.PlainNumber(quality),
 	}
+}
+
+func normalizeExt(ext string) string {
+	ext = strings.ToLower(ext)
+	if len(ext) != 0 && ext[0] != '.' {
+		ext = "." + ext
+	}
+	return ext
 }
 
 type loader struct {
@@ -159,7 +168,7 @@ func (s saver) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	}
 
 	if s.ext == "" && s.file != "" {
-		s.ext = strings.ToLower(filepath.Ext(s.file))
+		s.ext = normalizeExt(filepath.Ext(s.file))
 	}
 
 	q, err := s.q.Int(img)

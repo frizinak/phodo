@@ -1,367 +1,67 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/frizinak/phodo/edit"
 	"github.com/frizinak/phodo/flags"
-	"github.com/frizinak/phodo/img48"
+	"github.com/frizinak/phodo/phodo"
 	"github.com/frizinak/phodo/pipeline"
 
-	"github.com/frizinak/phodo/pipeline/element"
 	_ "github.com/frizinak/phodo/pipeline/element"
-	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-type Conf struct {
-	Verbose    bool
-	InputFile  string
-	OutputFile string
-	Script     string
-	Pipeline   string
-
-	confDir string
-}
-
-var errNoVars = errors.New("no variables file")
-
-func (c *Conf) Parse() error {
-	if c.Script == "" {
-		c.Script = c.InputFile + ".pho"
-	}
-	if c.Pipeline == "" {
-		c.Pipeline = "main"
+func parseAssignments(c phodo.Conf, args []string) error {
+	for _, arg := range args {
+		ps := strings.SplitN(arg, "=", 2)
+		if len(ps) != 2 {
+			return errors.New("missing '=' in assignment of variables")
+		}
+		c.Vars[ps[0]] = ps[1]
 	}
 
 	return nil
 }
 
-func (c *Conf) ConfDir() (string, error) {
-	if c.confDir != "" {
-		return c.confDir, nil
-	}
-
-	conf, err := os.UserConfigDir()
-	c.confDir = conf
-	return c.confDir, err
-}
-
-func (c *Conf) VarsFile() (string, error) {
-	d, err := c.ConfDir()
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(d, "phodo", "vars"), nil
-}
-
-func (c *Conf) Vars() (map[string]string, error) {
-	m := make(map[string]string)
-	p, err := c.VarsFile()
-	if err != nil {
-		return m, err
-	}
-
-	f, err := os.Open(p)
-	if os.IsNotExist(err) {
-		err = fmt.Errorf("%w found at '%s'.", errNoVars, p)
-	}
-	if err != nil {
-		return m, err
-	}
-	defer f.Close()
-
-	s := bufio.NewScanner(f)
-	s.Split(bufio.ScanLines)
-	line := 0
-	for s.Scan() {
-		line++
-		t := strings.TrimSpace(s.Text())
-		if t == "" {
-			continue
-		}
-
-		if !strings.ContainsRune(t, '=') || t[0] == '=' {
-			return m, fmt.Errorf("invalid syntax on line %d: '%s'", line, t)
-		}
-
-		p := strings.SplitN(t, "=", 2)
-		p1 := strings.TrimSpace(p[0])
-		p2 := ""
-		if len(p) == 2 {
-			p2 = strings.TrimSpace(p[1])
-		}
-
-		m[p1] = p2
-	}
-
-	return m, nil
-}
-
-func parseAssignments(c *Conf, args []string) (map[string]string, error) {
-	vars, err := c.Vars()
-	if err != nil && !errors.Is(err, errNoVars) {
-		return vars, err
-	}
-
-	for _, arg := range args {
-		ps := strings.SplitN(arg, "=", 2)
-		if len(ps) != 2 {
-			return vars, errors.New("missing '=' in assignment of variables")
-		}
-		vars[ps[0]] = ps[1]
-	}
-
-	return vars, nil
-}
-
-func handleEdit(c *Conf, args []string) error {
-	c.InputFile = args[0]
-	if err := c.Parse(); err != nil {
-		return nil
-	}
-
-	args = args[1:]
-	vars, err := parseAssignments(c, args)
-	if err != nil {
-		return err
-	}
-
-	ictx, cancel := context.WithCancel(context.Background())
-	ctx := pipeline.NewContext(c.Verbose, pipeline.ModeEdit, ictx)
-	load := pipeline.New(
-		element.Once(element.LoadFile(c.InputFile)),
-	)
-
-	var fullRefresh bool
-
-	var img *img48.Img
-	v := &edit.Viewer{}
-	var conf edit.Config
-	quit := make(chan struct{})
-	conf.OnKey = func(r rune) {
-		switch r {
-		case 'q':
-			cancel()
-			quit <- struct{}{}
-		case 'r':
-			fullRefresh = true
-		}
-	}
-
-	conf.OnClick = func(x, y int) {
-		if img == nil {
-			return
-		}
-		r, g, b, _ := img.At(x, y).RGBA()
-		fmt.Fprintf(
-			os.Stderr,
-			`click x=%d y=%d
-    rgb16(%5d, %5d, %5d)
-    rgb8 (%5d, %5d, %5d)
-    hex16 #%04x%04x%04x
-    hex8  #%02x%02x%02x
-`,
-			x,
-			y,
-			r,
-			g,
-			b,
-			r>>8,
-			g>>8,
-			b>>8,
-			r,
-			g,
-			b,
-			r>>8,
-			g>>8,
-			b>>8,
-		)
-	}
-
-	var gerr error
-	done := make(chan struct{})
-	go func() {
-		if err := v.Run(conf, quit); err != nil {
-			gerr = err
-		}
-		done <- struct{}{}
-	}()
-
-	var res *pipeline.Root
-
-	tShort := time.Millisecond * 20
-	tError := time.Millisecond * 1000
-
-	var fullRefreshing bool
-
-outer:
-	for {
-		select {
-		case <-done:
-			break outer
-		default:
-		}
-
-		s := time.Now()
-		f, err := os.Open(c.Script)
-		if err != nil {
-			if os.IsNotExist(err) {
-				err = fmt.Errorf("failed to open pipeline script: %s", c.Script)
-			}
-			fmt.Fprintln(os.Stderr, err)
-			time.Sleep(tError)
-			continue
-		}
-
-		r := pipeline.NewDecoder(f, vars)
-		if fullRefresh {
-			fullRefreshing = true
-			element.CacheClear()
-			res = nil
-		}
-		res, err = r.Decode(res)
-		f.Close()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			time.Sleep(tError)
-			continue
-		}
-
-		e, ok := res.Get(string(pipeline.NamedPrefix) + c.Pipeline)
-		if !ok {
-			fmt.Fprintf(os.Stderr, "no pipeline named '%s'\n", c.Pipeline)
-			time.Sleep(tError)
-			continue
-		}
-		if e.Cached && !fullRefresh {
-			time.Sleep(tShort)
-			continue
-		}
-
-		out, err := pipeline.New(
-			load,
-			e.Element,
-		).Do(ctx, nil)
-
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			time.Sleep(tError)
-			continue
-		}
-		img = core.ImageDiscard(out)
-		v.Set(img)
-		fmt.Fprintf(os.Stderr, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", time.Since(s).Round(time.Millisecond))
-
-		if fullRefreshing {
-			fmt.Fprintf(os.Stderr, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", "Refresh")
-			fullRefreshing = false
-			fullRefresh = false
-		}
-
-	}
-
-	return gerr
-}
-
-func handleDo(c *Conf, args []string) error {
+func handleEdit(c phodo.Conf, args []string) error {
 	if len(args) == 0 {
-		return errors.New("please specify the input and output file")
+		return errors.New("please specify a file to edit")
 	}
-	if len(args) < 2 {
-		return errors.New("please specify an output file.")
-	}
-
-	c.InputFile = args[0]
-	c.OutputFile = args[1]
-	args = args[2:]
-
-	vars, err := parseAssignments(c, args)
-	if err != nil {
+	if err := parseAssignments(c, args[1:]); err != nil {
 		return err
 	}
-
-	if err := c.Parse(); err != nil {
-		return err
-	}
-
-	return runScript(c, pipeline.ModeConvert, vars)
+	return phodo.Editor(context.Background(), c, args[0])
 }
 
-func handleScript(c *Conf, args []string) error {
+func handleDo(c phodo.Conf, args []string) error {
 	if len(args) == 0 {
-		return errors.New("please provide path to your pipeline script.")
+		return errors.New("please provide an input file")
+	} else if len(args) == 1 {
+		return errors.New("please provide an output file")
 	}
-
-	c.Script = args[0]
-	args = args[1:]
-	vars, err := parseAssignments(c, args)
-	if err != nil {
+	if err := parseAssignments(c, args[2:]); err != nil {
 		return err
 	}
-
-	if err := c.Parse(); err != nil {
-		return err
-	}
-
-	return runScript(c, pipeline.ModeScript, vars)
+	return phodo.Convert(context.Background(), c, args[0], args[1])
 }
 
-func runScript(c *Conf, mode pipeline.Mode, vars map[string]string) error {
-	f, err := os.Open(c.Script)
-	if err != nil {
-		return fmt.Errorf("failed to open pipeline scipt: %s: '%w'", c.Script, err)
+func handleScript(c phodo.Conf, args []string) error {
+	if len(args) == 0 {
+		return errors.New("please provide a script file")
 	}
-	r := pipeline.NewDecoder(f, vars)
-	res, err := r.Decode(nil)
-	f.Close()
-	if err != nil {
+	if err := parseAssignments(c, args[1:]); err != nil {
 		return err
 	}
-
-
-	pl, ok := res.Get(string(pipeline.NamedPrefix) + c.Pipeline)
-	if !ok {
-		list := res.List()
-		l := make([]string, len(list))
-		for k, v := range list {
-			l[k] = " - " + v.Name[1:]
-		}
-		return fmt.Errorf(
-			"no pipeline found by name '%s'. available:\n%s",
-			c.Pipeline,
-			strings.Join(l, "\n"),
-		)
-	}
-
-	line := pipeline.New()
-	if c.InputFile != "" {
-		line.Add(element.Once(element.LoadFile(c.InputFile)))
-	}
-
-	line.Add(pl.Element)
-
-	if c.OutputFile != "" {
-		line.Add(element.SaveFile(c.OutputFile, 92))
-	}
-
-	ctx := pipeline.NewContext(c.Verbose, mode, context.Background())
-	_, err = line.Do(ctx, nil)
-
-	return err
+	return phodo.Script(context.Background(), c, args[0])
 }
 
 func main() {
-	c := &Conf{}
+	c := phodo.NewConf(os.Stderr, nil)
 
 	flagVerbose := func(set *flag.FlagSet) {
 		set.BoolVar(&c.Verbose, "v", false, "Be verbose")
@@ -412,6 +112,7 @@ func main() {
 		flagVerbose(set)
 		flagPipeline(set)
 		flagScript(set)
+		set.StringVar(&c.EditorString, "c", "", "command to run to edit the pipeline file. e.g.: 'nvim {}'")
 
 		return func(w io.Writer) {
 			fmt.Fprintln(w, "Show an image viewer that reflects the changes in the sidecar file")
