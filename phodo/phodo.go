@@ -236,6 +236,31 @@ func Editor(ctx context.Context, c Conf, file string) error {
 		}
 	}
 
+	{
+		s, err := os.Stat(c.Script)
+		if os.IsNotExist(err) {
+			if s != nil && s.IsDir() {
+				return fmt.Errorf("'%s' is a directory", c.Script)
+			}
+			err = func() error {
+				f, err := os.Create(c.Script)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				enc := pipeline.NewEncoder(f, "    ")
+				err = enc.All(pipeline.NewNamed(".main", element.CorrectOrientation()))
+				if err != nil {
+					return err
+				}
+				return enc.Flush()
+			}()
+		}
+		if err != nil {
+			return err
+		}
+	}
+
 	editDone := make(chan struct{}, 1)
 	if cmd != nil {
 		if err := cmd.Start(); err != nil {
