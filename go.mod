@@ -9,7 +9,7 @@ require (
 	github.com/go-gl/mathgl v1.0.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/mattn/anko v0.1.9
-	golang.org/x/image v0.8.0
+	golang.org/x/image v0.9.0
 )
 
-require github.com/klauspost/compress v1.9.8 // indirect
+require github.com/klauspost/compress v1.16.7 // indirect
