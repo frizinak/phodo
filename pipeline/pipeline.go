@@ -48,7 +48,8 @@ type Pipeline struct {
 	}
 }
 
-func New(elements ...Element) *Pipeline { return mk(elements) }
+func NewNamed(name string, elements ...Element) *Pipeline { p := mk(elements); p.name = name; return p }
+func New(elements ...Element) *Pipeline                   { return mk(elements) }
 
 func mk(els []Element) *Pipeline {
 	return &Pipeline{line: els}
