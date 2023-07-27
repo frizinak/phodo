@@ -250,10 +250,10 @@ func (v *Viewer) run() error {
 
 	var err error
 	v.window, err = initialize()
-	defer glfw.Terminate()
 	if err != nil {
 		return err
 	}
+	defer v.window.Destroy()
 	v.monitor = glfw.GetPrimaryMonitor()
 	v.videoMode = v.monitor.GetVideoMode()
 	v.proj = mgl32.Ortho2D(0, 800, 800, 0)

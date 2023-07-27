@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/frizinak/phodo/edit"
 	"github.com/frizinak/phodo/flags"
 	"github.com/frizinak/phodo/phodo"
 	"github.com/frizinak/phodo/pipeline"
@@ -35,6 +36,8 @@ func handleEdit(c phodo.Conf, args []string) error {
 	if err := parseAssignments(c, args[1:]); err != nil {
 		return err
 	}
+
+	defer edit.Destroy(true)
 	return phodo.Editor(context.Background(), c, args[0])
 }
 

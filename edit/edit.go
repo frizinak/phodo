@@ -2,6 +2,7 @@ package edit
 
 import (
 	"github.com/frizinak/phodo/img48"
+	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 type Config struct {
@@ -26,4 +27,10 @@ func (v *Viewer) Run(c Config, exit <-chan struct{}) error {
 	v.c = c
 
 	return v.run()
+}
+
+func Destroy(destroyGLFW bool) {
+	if destroyGLFW {
+		glfw.Terminate()
+	}
 }
