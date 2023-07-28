@@ -16,15 +16,29 @@ const (
 	ModeEdit
 )
 
+var onnews []func(ctx Context)
+
+func RegisterNewContextHandler(f func(ctx Context)) {
+	onnews = append(onnews, f)
+}
+
 type Context interface {
 	context.Context
 	Mark(Element, ...string)
 	Warn(Element, ...string)
 	Mode() Mode
+
+	Get(id string) interface{}
+	Set(id string, d interface{})
 }
 
 func NewContext(verbose bool, mode Mode, ctx context.Context) *SimpleContext {
-	return &SimpleContext{verbose: verbose, mode: mode, Context: ctx}
+	c := &SimpleContext{verbose: verbose, mode: mode, Context: ctx}
+	c.data = make(map[string]interface{})
+	for _, cb := range onnews {
+		cb(c)
+	}
+	return c
 }
 
 type SimpleContext struct {
@@ -34,6 +48,8 @@ type SimpleContext struct {
 	e    string
 	t    time.Time
 	info []string
+
+	data map[string]interface{}
 }
 
 func (s *SimpleContext) Mark(e Element, info ...string) {
@@ -79,3 +95,11 @@ func (s *SimpleContext) Warn(e Element, msg ...string) {
 }
 
 func (s *SimpleContext) Mode() Mode { return s.mode }
+
+func (s *SimpleContext) Get(id string) interface{} {
+	return s.data[id]
+}
+
+func (s *SimpleContext) Set(id string, d interface{}) {
+	s.data[id] = d
+}

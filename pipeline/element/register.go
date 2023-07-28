@@ -5,10 +5,12 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-var gstate = NewStateContainer()
-var gcache = NewCacheContainer(100)
-
 func init() {
+	pipeline.RegisterNewContextHandler(func(ctx pipeline.Context) {
+		ctx.Set(StateStorageName, NewStateContainer())
+		ctx.Set(CacheStorageName, NewCacheContainer(100))
+	})
+
 	pipeline.Register(saver{})
 	pipeline.Register(loader{})
 

@@ -8,11 +8,27 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-func StateSave(name string) pipeline.Element       { return gstate.Save(name) }
-func StateSaveNoCopy(name string) pipeline.Element { return gstate.SaveNoCopy(name) }
-func StateLoad(name string) pipeline.Element       { return gstate.Load(name) }
-func StateDiscard(name string) pipeline.Element    { return gstate.Discard(name) }
-func StateClear()                                  { gstate.Clear() }
+const StateStorageName = "stdlib.states"
+
+func stateContainer(ctx pipeline.Context) *StateContainer {
+	return ctx.Get(StateStorageName).(*StateContainer)
+}
+
+func StateSave(ctx pipeline.Context, name string) pipeline.Element {
+	return stateContainer(ctx).Save(name)
+}
+
+func StateLoad(ctx pipeline.Context, name string) pipeline.Element {
+	return stateContainer(ctx).Load(name)
+}
+
+func StateDiscard(ctx pipeline.Context, name string) pipeline.Element {
+	return stateContainer(ctx).Discard(name)
+}
+
+func StateClear(ctx pipeline.Context) {
+	stateContainer(ctx).Clear()
+}
 
 type StateContainer struct {
 	l map[string]*state
@@ -26,24 +42,18 @@ func (s *StateContainer) Save(name string) pipeline.Element {
 	return pipeline.New(s.store(name), Copy())
 }
 
-func (s *StateContainer) SaveNoCopy(name string) pipeline.Element {
-	return s.store(name)
-}
-
 func (s *StateContainer) store(name string) pipeline.Element {
 	state := &state{}
 	s.l[name] = state
-	return stateElement{name, stateStore, state}
+	return stateElement{name, stateStore}
 }
 
 func (s *StateContainer) Load(name string) pipeline.Element {
-	state := s.l[name]
-	return stateElement{name, stateRestore, state}
+	return stateElement{name, stateRestore}
 }
 
 func (s *StateContainer) Discard(name string) pipeline.Element {
-	state := s.l[name]
-	return stateElement{name, stateDiscard, state}
+	return stateElement{name, stateDiscard}
 }
 
 func (s *StateContainer) Clear() { s.l = make(map[string]*state) }
@@ -67,7 +77,6 @@ type state struct {
 type stateElement struct {
 	name string
 	typ  uint8
-	s    *state
 }
 
 func (s stateElement) Name() string {
@@ -115,25 +124,27 @@ func (s stateElement) Encode(w pipeline.Writer) error {
 
 func (s stateElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	s.name = r.String()
-	if _, ok := gstate.l[s.name]; !ok {
-		gstate.l[s.name] = &state{}
-	}
-
-	s.s = gstate.l[s.name]
 	return s, nil
 }
 
 func (s stateElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	ctx.Mark(s, stateName[s.typ], s.name)
 
+	gstate := stateContainer(ctx)
+	if _, ok := gstate.l[s.name]; !ok {
+		gstate.l[s.name] = &state{}
+	}
+
+	state := gstate.l[s.name]
+
 	switch s.typ {
 	case stateStore:
-		s.s.img = core.ImageCopy(img)
+		state.img = core.ImageCopy(img)
 		return img, nil
 	case stateRestore:
-		return core.ImageCopy(s.s.img), nil
+		return core.ImageCopy(state.img), nil
 	case stateDiscard:
-		s.s.img = nil
+		state.img = nil
 		return img, nil
 	}
 

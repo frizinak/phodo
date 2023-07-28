@@ -110,6 +110,10 @@ func (c Conf) Parse() (Conf, error) {
 		}
 	}
 
+	for k, v := range c.Vars {
+		c.vars[k] = v
+	}
+
 	return c, nil
 }
 
@@ -149,10 +153,6 @@ func (c Conf) parseVars() (map[string]string, error) {
 		m[p1] = p2
 	}
 
-	for k, v := range c.Vars {
-		m[k] = v
-	}
-
 	return m, nil
 }
 
@@ -164,8 +164,9 @@ func Editor(ctx context.Context, c Conf, file string) error {
 		return nil
 	}
 
-	ictx, cancel := context.WithCancel(ctx)
-	rctx := pipeline.NewContext(c.Verbose, pipeline.ModeEdit, ictx)
+	var cancel func()
+	ctx, cancel = context.WithCancel(ctx)
+	rctx := pipeline.NewContext(c.Verbose, pipeline.ModeEdit, ctx)
 	load := pipeline.New(
 		element.Once(element.LoadFile(c.inputFile)),
 	)
@@ -299,7 +300,7 @@ outer:
 		r := pipeline.NewDecoder(f, c.vars)
 		if fullRefresh {
 			fullRefreshing = true
-			element.CacheClear()
+			rctx = pipeline.NewContext(c.Verbose, pipeline.ModeEdit, ctx)
 			res = nil
 		}
 		res, err = r.Decode(res)

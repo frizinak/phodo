@@ -11,16 +11,18 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
+const CacheStorageName = "stdlib.cache"
+
+func cacheContainer(ctx pipeline.Context) *CacheContainer {
+	return ctx.Get(CacheStorageName).(*CacheContainer)
+}
+
 func Once(els ...pipeline.Element) pipeline.Element {
 	return cache{
 		container: NewCacheContainer(10),
 		hash:      dummyHash{make([]byte, 1)},
 		els:       els,
 	}
-}
-
-func CacheClear() {
-	gcache.Clear()
 }
 
 type CacheContainer struct {
@@ -120,7 +122,6 @@ func (c cache) Encode(w pipeline.Writer) error {
 }
 
 func (c cache) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.container = gcache
 	ne := r.Len()
 	c.els = make([]pipeline.Element, ne)
 	for i := range c.els {
@@ -138,6 +139,10 @@ func (c cache) Decode(r pipeline.Reader) (pipeline.Element, error) {
 
 func (c cache) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	ctx.Mark(c)
+
+	if c.container == nil {
+		c.container = cacheContainer(ctx)
+	}
 
 	hash := c.hash.Value()
 	if img, ok := c.container.Get(hash); ok {
