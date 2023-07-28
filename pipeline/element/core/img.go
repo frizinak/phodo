@@ -94,7 +94,7 @@ func ImageDecode(r io.ReadSeeker, extHint string) (*img48.Img, error) {
 	return imageDecode(r, extHint, true)
 }
 
-func imageDecode(r io.ReadSeeker, extHint string, tryRAW bool) (*img48.Img, error) {
+func imageDecode(r io.ReadSeeker, extHint string, tryDCRAW bool) (*img48.Img, error) {
 	var _img image.Image
 	var err error
 	var typ string
@@ -108,9 +108,11 @@ func imageDecode(r io.ReadSeeker, extHint string, tryRAW bool) (*img48.Img, erro
 
 	// TODO better faster stronger jpeg decoder
 	// TODO better faster stronger tiff decoder
-	// switch extHint {
-	// Add fast paths here
-	// }
+	forceDCRAW := false
+	switch extHint {
+	case ".nef":
+		forceDCRAW = true
+	}
 
 	if err != nil || _img == nil {
 		if read {
@@ -119,8 +121,11 @@ func imageDecode(r io.ReadSeeker, extHint string, tryRAW bool) (*img48.Img, erro
 			}
 		}
 
-		_img, typ, err = image.Decode(r)
-		if err != nil && tryRAW {
+		if !forceDCRAW {
+			_img, typ, err = image.Decode(r)
+		}
+
+		if (err != nil || _img == nil) && tryDCRAW {
 			tmp := TempFile(filepath.Join(os.TempDir(), "phodo"))
 
 			{
@@ -162,6 +167,7 @@ func imageDecode(r io.ReadSeeker, extHint string, tryRAW bool) (*img48.Img, erro
 			}
 
 			img, err := imageDecode(f, ".tif", false)
+
 			f.Close()
 			os.Remove(tif)
 			return img, err
