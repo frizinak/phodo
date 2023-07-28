@@ -412,7 +412,7 @@ func runScript(ctx context.Context, c Conf, mode pipeline.Mode) error {
 
 	line := pipeline.New()
 	if c.inputFile != "" {
-		line.Add(element.Once(element.LoadFile(c.inputFile)))
+		line.Add(element.LoadFile(c.inputFile))
 	}
 
 	line.Add(pl.Element)
