@@ -357,31 +357,48 @@ func Script(ctx context.Context, c Conf, script string) error {
 	return runScript(ctx, c, pipeline.ModeScript)
 }
 
-func runScript(ctx context.Context, c Conf, mode pipeline.Mode) error {
+func LoadSidecar(c Conf, input string) (*pipeline.Root, error) {
+	c.inputFile = input
+	return load(c)
+}
+
+func LoadScript(c Conf, script string) (*pipeline.Root, error) {
+	c.Script = script
+	return load(c)
+}
+
+func load(c Conf) (*pipeline.Root, error) {
 	var err error
 	c, err = c.Parse()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if c.Script == "" {
-		return errors.New("no script to parse")
+		return nil, errors.New("no script to parse")
 	}
 
 	f, err := os.Open(c.Script)
 	if err != nil {
-		return fmt.Errorf("failed to open pipeline script: %s: '%w'", c.Script, err)
+		return nil, fmt.Errorf("failed to open pipeline script: %s: '%w'", c.Script, err)
 	}
+
 	r := pipeline.NewDecoder(f, c.vars)
 	res, err := r.Decode(nil)
 	f.Close()
+
+	return res, err
+}
+
+func runScript(ctx context.Context, c Conf, mode pipeline.Mode) error {
+	root, err := load(c)
 	if err != nil {
 		return err
 	}
 
-	pl, ok := res.Get(string(pipeline.NamedPrefix) + c.Pipeline)
+	pl, ok := root.Get(string(pipeline.NamedPrefix) + c.Pipeline)
 	if !ok {
-		list := res.List()
+		list := root.List()
 		l := make([]string, len(list))
 		for k, v := range list {
 			l[k] = " - " + v.Name[1:]
