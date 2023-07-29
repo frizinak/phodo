@@ -19,7 +19,7 @@ func ExifDel(path ...uint16) pipeline.Element {
 }
 
 func ExifAllow(list []uint16) pipeline.Element {
-	e := exif{typ: exifDel}
+	e := exif{typ: exifAllow}
 	e.arr = make([]pipeline.Number, len(list))
 	for i := range list {
 		e.arr[i] = pipeline.PlainNumber(int(list[i]))
