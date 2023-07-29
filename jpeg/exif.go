@@ -19,6 +19,11 @@ func EncodeWithExif(w io.Writer, img image.Image, ex *exif.Exif, quality int) er
 	)
 }
 
+func OverwriteExif(r io.Reader, w io.Writer, ex *exif.Exif) error {
+	_, err := io.Copy(&jwriter{w: w, exif: ex}, r)
+	return err
+}
+
 type jwriter struct {
 	w    io.Writer
 	exif *exif.Exif
