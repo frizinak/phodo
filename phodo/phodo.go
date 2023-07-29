@@ -367,6 +367,13 @@ func LoadScript(c Conf, script string) (*pipeline.Root, error) {
 	return load(c)
 }
 
+func SidecarPath(c Conf, input string) (string, error) {
+	var err error
+	c.inputFile = input
+	c, err = c.Parse()
+	return c.Script, err
+}
+
 func load(c Conf) (*pipeline.Root, error) {
 	var err error
 	c, err = c.Parse()
