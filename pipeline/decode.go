@@ -366,8 +366,10 @@ type propagator struct {
 
 func (p *propagator) Value() []byte { return p.d }
 
-func (p *propagator) set(d []byte) { p.d = d }
-func (p *propagator) add(d []byte) { p.d = append(p.d, d...) }
+func (p *propagator) set(d []byte)      { p.d = d }
+func (p *propagator) add(c *propagator) { p.c = append(p.c, c) }
+
+// func (p *propagator) add(d []byte) { p.d = append(p.d, d...) }
 func (p *propagator) new() *propagator {
 	n := &propagator{}
 	p.c = append(p.c, n)
@@ -418,7 +420,7 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 		}
 	}
 
-	elookup := make(map[string]*entry)
+	elookup := make(map[string]*propagator)
 	lookup := make(map[string]Element)
 
 	var dec func(h hash.Hash, p *propagator, e *entry) (Element, error)
@@ -436,7 +438,13 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 		named := name[0] == NamedPrefix
 		isRef := false
 		if named {
+			// lookup and elookup are local, root is shared across multiple
+			// includes.
 			_, isRef = lookup[name]
+			if isRef {
+				p.add(elookup[name])
+			}
+
 			if el, ok := root.Get(name); ok {
 				if len(e.values) != 0 {
 					return el.Element, fmt.Errorf("%s already defined", name)
@@ -452,19 +460,6 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 				return nil, fmt.Errorf("%s has an empty definition", name)
 			}
 			id = anonPipeline
-		}
-
-		if isRef {
-			el, ok := lookup[name]
-			var err error
-			if !ok {
-				err = fmt.Errorf("could not find definition for named pipeline '%s'", name)
-				return el, err
-			}
-
-			elookup[name].calcHash(h)
-			p.add(h.Sum(nil))
-			return el, nil
 		}
 
 		skel := decodables[id]
@@ -491,14 +486,14 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 				return el, fmt.Errorf("duplicate entry for named pipeline '%s'", name)
 			}
 			lookup[name] = el
-			elookup[name] = e
+			elookup[name] = p
 		}
 
 		return el, err
 	}
 
-	h := crc32.NewIEEE()
 	for _, e := range d.state.values {
+		h := crc32.NewIEEE()
 		rp := &propagator{}
 		el, err := dec(h, rp, e)
 		if err != nil {
