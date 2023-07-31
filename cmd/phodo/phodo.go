@@ -14,6 +14,7 @@ import (
 	"github.com/frizinak/phodo/phodo"
 	"github.com/frizinak/phodo/pipeline"
 
+	"github.com/frizinak/phodo/pipeline/element"
 	_ "github.com/frizinak/phodo/pipeline/element"
 )
 
@@ -35,6 +36,10 @@ func handleEdit(c phodo.Conf, args []string) error {
 	}
 	if err := parseAssignments(c, args[1:]); err != nil {
 		return err
+	}
+
+	c.DefaultPipeline = func() pipeline.Element {
+		return pipeline.NewNamed(".main", element.CorrectOrientation())
 	}
 
 	defer edit.Destroy(true)

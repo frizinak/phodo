@@ -26,6 +26,8 @@ type Conf struct {
 	Editor       []string
 	EditorString string
 
+	DefaultPipeline func() pipeline.Element
+
 	Verbose   bool
 	Pipeline  string
 	Script    string
@@ -243,14 +245,20 @@ func Editor(ctx context.Context, c Conf, file string) error {
 			if s != nil && s.IsDir() {
 				return fmt.Errorf("'%s' is a directory", c.Script)
 			}
+
+			if c.DefaultPipeline == nil {
+				return fmt.Errorf("%w and no default pipeline was provided", err)
+			}
+
 			err = func() error {
 				f, err := os.Create(c.Script)
 				if err != nil {
 					return err
 				}
 				defer f.Close()
+				el := c.DefaultPipeline()
 				enc := pipeline.NewEncoder(f, "    ")
-				err = enc.All(pipeline.NewNamed(".main", element.CorrectOrientation()))
+				err = enc.All(el)
 				if err != nil {
 					return err
 				}
