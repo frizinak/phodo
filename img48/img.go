@@ -113,6 +113,7 @@ func (img *Img) YCbCrBlock8(x, y int, Y, Cb, Cr *jpeg.Block) {
 
 func New(b image.Rectangle) *Img {
 	return &Img{
+		Exif:   exif.New(),
 		Pix:    make([]uint16, 3*b.Dx()*b.Dy()),
 		Stride: 3 * b.Dx(),
 		Rect:   b,
@@ -139,6 +140,7 @@ func NewFrom8(buf []uint8, width, height int) (*Img, error) {
 			nb[n] = uint16(v) << 8
 		}
 		return &Img{
+			Exif:   exif.New(),
 			Stride: 3 * width,
 			Rect:   image.Rect(0, 0, width, height),
 			Pix:    nb,
@@ -155,6 +157,7 @@ func NewFrom8(buf []uint8, width, height int) (*Img, error) {
 			nb[i+2] = uint16(buf[n+2]) << 8
 		}
 		return &Img{
+			Exif:   exif.New(),
 			Stride: 3 * width,
 			Rect:   image.Rect(0, 0, width, height),
 			Pix:    nb,
@@ -169,6 +172,7 @@ func NewFrom16(buf []uint16, width, height int) (*Img, error) {
 	switch samples {
 	case 3:
 		return &Img{
+			Exif:   exif.New(),
 			Stride: 3 * width,
 			Rect:   image.Rect(0, 0, width, height),
 			Pix:    buf,
@@ -184,6 +188,7 @@ func NewFrom16(buf []uint16, width, height int) (*Img, error) {
 			copy(nb[i:i+3:i+3], buf[n:n+3:n+3])
 		}
 		return &Img{
+			Exif:   exif.New(),
 			Stride: 3 * width,
 			Rect:   image.Rect(0, 0, width, height),
 			Pix:    nb,
