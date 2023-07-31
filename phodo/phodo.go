@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/frizinak/phodo/edit"
@@ -283,6 +284,9 @@ outer:
 	for {
 		select {
 		case <-done:
+			if cmd != nil && cmd.Process != nil {
+				cmd.Process.Signal(syscall.SIGTERM)
+			}
 			break outer
 		case <-editDone:
 			exit()
@@ -330,11 +334,16 @@ outer:
 			e.Element,
 		).Do(rctx, nil)
 
+		if err == context.Canceled {
+			continue
+		}
+
 		if err != nil {
 			fmt.Fprintln(c.out, err)
 			time.Sleep(tError)
 			continue
 		}
+
 		img = core.ImageDiscard(out)
 		v.Set(img)
 		fmt.Fprintf(c.out, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", time.Since(s).Round(time.Millisecond))
