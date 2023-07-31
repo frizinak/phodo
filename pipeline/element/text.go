@@ -4,15 +4,21 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"io/ioutil"
+	"os"
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
 	"golang.org/x/image/font"
-	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/font/sfnt"
 	"golang.org/x/image/math/fixed"
+)
+
+type Font string
+
+const (
+	FontGoBold Font = "go-bold"
+	FontGo     Font = "go-regular"
 )
 
 func Text(x, y int, size float64, str string, clr Color, f Font) pipeline.Element {
@@ -26,34 +32,34 @@ func Text(x, y int, size float64, str string, clr Color, f Font) pipeline.Elemen
 	}
 }
 
-func TTFFont(d []byte) Font     { return ttfFont{d: d} }
-func TTFFontFile(p string) Font { return ttfFontFile{path: p} }
-
-var FontBold Font = TTFFont(gobold.TTF)
-
-type Font interface {
-	Font() (*sfnt.Font, error)
-	pipeline.Element
-}
+func TTFFont(name Font, d []byte) pipeline.Element     { return ttfFont{name: name, d: d} }
+func TTFFontFile(name Font, p string) pipeline.Element { return ttfFontFile{ttfFont{name: name}, p} }
 
 type ttfFont struct {
-	d []byte
-}
-
-func (t ttfFont) Font() (*sfnt.Font, error) {
-	col, err := opentype.ParseCollection(t.d)
-	if err != nil {
-		return nil, err
-	}
-
-	return col.Font(0)
+	name Font
+	d    []byte
 }
 
 func (t ttfFont) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(t)
+
+	col, err := opentype.ParseCollection(t.d)
+	if err != nil {
+		return img, err
+	}
+
+	f, err := col.Font(0)
+	if err != nil {
+		return img, err
+	}
+
+	ctx.Set(FontKey(t.name), f)
+
 	return img, nil
 }
 
 type ttfFontFile struct {
+	ttfFont
 	path string
 }
 
@@ -61,11 +67,13 @@ func (ttfFontFile) Name() string { return "font-load-ttf" }
 func (ttfFontFile) Inline() bool { return true }
 
 func (t ttfFontFile) Encode(w pipeline.Writer) error {
+	w.String(string(t.name))
 	w.String(t.path)
 	return nil
 }
 
 func (t ttfFontFile) Decode(r pipeline.Reader) (pipeline.Element, error) {
+	t.name = Font(r.String())
 	t.path = r.String()
 	return t, nil
 }
@@ -73,23 +81,26 @@ func (t ttfFontFile) Decode(r pipeline.Reader) (pipeline.Element, error) {
 func (t ttfFontFile) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s(<path>)", t.Name()),
-			"Loads a ttf font",
+			fmt.Sprintf("%s(<name> <path>)", t.Name()),
+			"Loads a ttf font that can be later referenced using the given name.",
 		},
 	}
 }
 
-func (t ttfFontFile) Font() (*sfnt.Font, error) {
-	d, err := ioutil.ReadFile(t.path)
+func (t ttfFontFile) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(t)
+
+	d, err := os.ReadFile(t.path)
 	if err != nil {
-		return nil, err
+		return img, err
 	}
-	return ttfFont{d: d}.Font()
+
+	t.d = d
+
+	return t.ttfFont.Do(ctx, img)
 }
 
-func (t ttfFontFile) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
-	return img, nil
-}
+func FontKey(str Font) string { return fmt.Sprintf(":font:%s", str) }
 
 type text struct {
 	x, y  pipeline.Number
@@ -107,7 +118,8 @@ func (t text) Encode(w pipeline.Writer) error {
 	w.Number(t.y)
 	w.Number(t.size)
 	w.String(t.text)
-	return w.Element(t.font)
+	w.String(string(t.font))
+	return nil
 }
 
 func (t text) Decode(r pipeline.Reader) (pipeline.Element, error) {
@@ -120,12 +132,7 @@ func (t text) Decode(r pipeline.Reader) (pipeline.Element, error) {
 		return t, err
 	}
 	t.color = clr.(Color)
-
-	fnt, err := r.ElementDefault(FontBold)
-	if err != nil {
-		return t, err
-	}
-	t.font = fnt.(Font)
+	t.font = Font(r.StringDefault(string(FontGo)))
 
 	return t, nil
 }
@@ -134,7 +141,11 @@ func (t text) Help() [][2]string {
 	return [][2]string{
 		{
 			fmt.Sprintf("%s(<x> <y> <size> <text> [color] [font])", t.Name()),
-			"Prints text at the given coordinates. (also see font-load-ttf)",
+			"Prints text at the given coordinates with the given color. Fonts can",
+		},
+		{
+			"",
+			"be registered with font-load-*(<font> ...).",
 		},
 	}
 }
@@ -158,15 +169,27 @@ func (t text) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	if err != nil {
 		return img, err
 	}
-	f, err := t.font.Font()
-	if err != nil {
-		return img, err
+
+	_font := ctx.Get(FontKey(t.font))
+	if _font == nil {
+		if t.font != "" {
+			ctx.Warn(t, fmt.Sprintf("font not loaded: '%s'", t.font))
+		}
+		_font = ctx.Get(FontKey(FontGo))
+	}
+
+	if _font == nil {
+		return img, fmt.Errorf("font not loaded: '%s'", t.font)
+	}
+	fnt, ok := _font.(*sfnt.Font)
+	if !ok {
+		return img, fmt.Errorf("invalid font: '%s': %T", t.font, _font)
 	}
 
 	clr := t.color.Color()
 	uni := image.NewUniform(color.NRGBA64{clr[0], clr[1], clr[2], 1<<16 - 1})
 
-	face, err := opentype.NewFace(f, &opentype.FaceOptions{
+	face, err := opentype.NewFace(fnt, &opentype.FaceOptions{
 		Size:    size,
 		DPI:     72,
 		Hinting: font.HintingNone,

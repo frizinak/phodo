@@ -292,10 +292,12 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 		case text:
 			els = append(
 				els,
-				Text(-50, 0, 12, "Wooptee", RGB8(255, 0, 0), FontBold),
-				Text(-50, 0, -12, "Wooptee", RGB8(255, 0, 0), FontBold),
-				Text(10, 10, 50, "Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee", RGB8(255, 0, 0), FontBold),
+				Text(-50, 0, 12, "Wooptee", RGB8(255, 0, 0), FontGoBold),
+				Text(-50, 0, -12, "Wooptee", RGB8(255, 0, 0), FontGoBold),
+				Text(10, 10, 50, "Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee", RGB8(255, 0, 0), FontGoBold),
 			)
+		case ttfFontFile:
+			// ignore
 		default:
 			constr = false
 		}

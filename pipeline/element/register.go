@@ -3,12 +3,23 @@ package element
 import (
 	"github.com/frizinak/phodo/pipeline"
 	"github.com/frizinak/phodo/pipeline/element/core"
+	"golang.org/x/image/font/gofont/gobold"
+	"golang.org/x/image/font/gofont/goregular"
 )
 
 func init() {
 	pipeline.RegisterNewContextHandler(func(ctx pipeline.Context) {
 		ctx.Set(StateStorageName, NewStateContainer())
 		ctx.Set(CacheStorageName, NewCacheContainer(100))
+
+		_, err := TTFFont(FontGoBold, gobold.TTF).Do(ctx, nil)
+		if err != nil {
+			panic(err)
+		}
+		_, err = TTFFont(FontGo, goregular.TTF).Do(ctx, nil)
+		if err != nil {
+			panic(err)
+		}
 	})
 
 	pipeline.Register(saver{})
