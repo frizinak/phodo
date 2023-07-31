@@ -2,7 +2,6 @@ package element
 
 import (
 	"fmt"
-	"image"
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
@@ -123,32 +122,4 @@ func (spot healSpot) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error
 	}
 
 	return img, nil
-}
-
-func calculateAverageColor(img image.Image, x, y, patchSize int) (uint8, uint8, uint8, uint8) {
-	var totalR, totalG, totalB, totalA uint32
-	count := 0
-
-	// Calculate the sum of color values of nearby pixels
-	for dy := -patchSize / 2; dy <= patchSize/2; dy++ {
-		for dx := -patchSize / 2; dx <= patchSize/2; dx++ {
-			nx, ny := x+dx, y+dy
-			if nx >= 0 && nx < img.Bounds().Dx() && ny >= 0 && ny < img.Bounds().Dy() {
-				r, g, b, a := img.At(nx, ny).RGBA()
-				totalR += r
-				totalG += g
-				totalB += b
-				totalA += a
-				count++
-			}
-		}
-	}
-
-	// Calculate the average color value
-	avgR := uint8(totalR / uint32(count) >> 8)
-	avgG := uint8(totalG / uint32(count) >> 8)
-	avgB := uint8(totalB / uint32(count) >> 8)
-	avgA := uint8(totalA / uint32(count) >> 8)
-
-	return avgR, avgG, avgB, avgA
 }
