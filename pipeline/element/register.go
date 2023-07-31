@@ -37,6 +37,8 @@ func init() {
 	pipeline.Register(rgbMul{})
 	pipeline.Register(whiteBalanceSpot{})
 
+	pipeline.Register(healSpot{})
+
 	pipeline.Register(stateElement{typ: stateStore})
 	pipeline.Register(stateElement{typ: stateRestore})
 	pipeline.Register(stateElement{typ: stateDiscard})

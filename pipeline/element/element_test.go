@@ -265,6 +265,13 @@ func testAll(t *testing.T, n func() *img48.Img) {
 				Histogram().RGBImage().BarSize(5).Size(5, 8),
 				Histogram().RGBImage().BarSize(-5).Size(-500, 800),
 			)
+		case healSpot:
+			els = append(
+				els,
+				HealSpot(0, 0, 0, 0, 500, 0),
+				HealSpot(0, 0, 500, 500, -500, -50),
+				HealSpot(-500, -500, 500, 500, -500, 100),
+			)
 		default:
 			constr = false
 		}

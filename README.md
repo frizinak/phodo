@@ -7,33 +7,15 @@ An image processing library and pipeline scripting language.
 Simple yet performant library to create an equally simple RAW/JPEG editor to 
 integrate into my photography workflow.
 
-## To do
+## State
 
-- [ ] Decently sized stdlib
-    - [X] white-balance-spot(x y radius)
-    - [ ] visualize-clipping()
-    - [ ] spot removal / clone tool
-    - [ ] reduce-noise()
-    - [ ] exif add/set
-    - [X] exif delete / allowlist
-    - [ ] glob() / find() / exec(`find -iname '*.png'`)
-    - [X] dcraw
-    - [ ] ...
-- [ ] More scripting options
-    - [X] Include files
-    - [X] math
-    - [X] variables
-    - [ ] defining composite elements
-    - [ ] ...
-- [X] EXIF input
-- [ ] EXIF Output
-    - [X] JPEG
-    - [X] JPEG 4:4:4
-    - [ ] PNG
-    - [ ] TIFF
-- [ ] Documentation
+Workable CLI. Simple `element` interface if you are missing a feature.
 
-## Scripting example
+Read pipeline element documentation using `$ phodo list elements`.
+
+Almost fully integrated into [photos](https://github.com/frizinak/photos) (phodo branch)
+
+## Scripting example (slightly outdated)
 
 ```
 .a-clut(clut(cache(load-file("cluts/a hald clut.png"))))
