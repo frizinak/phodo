@@ -404,7 +404,7 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 			}
 
 			d := NewDecoder(f, d.vars)
-			r, err := d.Decode(cache)
+			r, err := d.Decode(root)
 			f.Close()
 			if err != nil {
 				return err
