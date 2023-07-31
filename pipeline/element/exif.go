@@ -118,8 +118,15 @@ func (x exif) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		allow[v] = struct{}{}
 	}
 
+	if img.Exif == nil {
+		return img, nil
+	}
+
 	var it func(set *ex.IFDSet)
 	it = func(set *ex.IFDSet) {
+		if set == nil {
+			return
+		}
 		for _, l := range set.IFDs {
 			deletes := make([]uint16, 0)
 			for _, e := range l.List {

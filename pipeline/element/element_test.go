@@ -205,9 +205,9 @@ func testAll(t *testing.T, n func() *img48.Img) {
 		case stateElement:
 			els = append(
 				els,
-				StateSave("wooptee"),
-				StateLoad("wooptee"),
-				StateDiscard("wooptee"),
+				StateSave(ctx, "wooptee"),
+				StateLoad(ctx, "wooptee"),
+				StateDiscard(ctx, "wooptee"),
 			)
 		case cache:
 			els = append(els, Once(Rotate(1)))
