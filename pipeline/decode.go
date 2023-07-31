@@ -315,6 +315,14 @@ func (r *Root) List() []NamedElement {
 	return l
 }
 
+func (r *Root) ListElements() []Element {
+	l := make([]Element, len(r.o))
+	for i, e := range r.o {
+		l[i] = r.m[e].Element
+	}
+	return l
+}
+
 func NewRoot(env *env.Env) *Root {
 	if env == nil {
 		env = env.NewEnv()
@@ -568,6 +576,9 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 					buf = []rune(val)
 					break
 				}
+				if r == 0 {
+					break
+				}
 				varbuf = append(varbuf, r)
 			}
 
@@ -619,7 +630,7 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 			}
 			for {
 				r = d.r.ReadRune()
-				if r == '\n' {
+				if r == '\n' || r == 0 {
 					break
 				}
 			}
