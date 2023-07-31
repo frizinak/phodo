@@ -3,13 +3,13 @@ package element
 import (
 	"bytes"
 	"context"
-	"image"
-	"io"
-	"testing"
-
+	"errors"
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
 	"github.com/frizinak/phodo/pipeline/element/core"
+	"image"
+	"io"
+	"testing"
 )
 
 var jpeg0x0 = []byte{
@@ -101,14 +101,18 @@ func TestZeroAreaImage(t *testing.T) {
 	n := func() *img48.Img {
 		return img48.New(image.Rect(0, 0, 0, 0))
 	}
-	testAll(t, n)
+	testAll(t, n, func(err error) {
+		panic(err)
+	})
 }
 
 func TestNonZeroAreaImage(t *testing.T) {
 	n := func() *img48.Img {
 		return img48.New(image.Rect(0, 0, 1024, 1024))
 	}
-	testAll(t, n)
+	testAll(t, n, func(err error) {
+		panic(err)
+	})
 }
 
 func TestCroppedImage(t *testing.T) {
@@ -116,10 +120,23 @@ func TestCroppedImage(t *testing.T) {
 		return img48.New(image.Rect(0, 0, 1024, 1024)).
 			SubImage(image.Rect(100, 100, 500, 500)).(*img48.Img)
 	}
-	testAll(t, n)
+	testAll(t, n, func(err error) {
+		panic(err)
+	})
 }
 
-func testAll(t *testing.T, n func() *img48.Img) {
+func TestNilImage(t *testing.T) {
+	n := func() *img48.Img {
+		return nil
+	}
+	testAll(t, n, func(err error) {
+		if !errors.As(err, &pipeline.ErrNeedImageInput{}) {
+			panic(err)
+		}
+	})
+}
+
+func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 	ctx := pipeline.NewContext(false, pipeline.ModeConvert, context.Background())
 	items := pipeline.Registered()
 	for _, i := range items {
@@ -295,7 +312,7 @@ func testAll(t *testing.T, n func() *img48.Img) {
 			for _, el := range els {
 				img := n()
 				if _, err := el.Do(ctx, img); err != nil {
-					panic(err)
+					onerr(err)
 				}
 			}
 		}()

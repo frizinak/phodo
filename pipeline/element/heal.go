@@ -60,6 +60,10 @@ func (spot healSpot) Help() [][2]string {
 func (spot healSpot) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	ctx.Mark(spot)
 
+	if img == nil {
+		return img, pipeline.NewErrNeedImageInput(spot.Name())
+	}
+
 	x1, err := spot.x1.Int(img)
 	if err != nil {
 		return img, err

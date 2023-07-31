@@ -96,6 +96,10 @@ func (x exif) Decode(r pipeline.Reader) (pipeline.Element, error) {
 func (x exif) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	ctx.Mark(x)
 
+	if img == nil {
+		return img, nil
+	}
+
 	addr := make([]uint16, 0, 4)
 	for _, n := range x.arr {
 		v, err := n.Int(img)

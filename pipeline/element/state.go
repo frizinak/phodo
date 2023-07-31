@@ -139,9 +139,15 @@ func (s stateElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, erro
 
 	switch s.typ {
 	case stateStore:
+		if img == nil {
+			return img, pipeline.NewErrNeedImageInput(s.Name())
+		}
 		state.img = core.ImageCopy(img)
 		return img, nil
 	case stateRestore:
+		if state.img == nil {
+			return nil, nil
+		}
 		return core.ImageCopy(state.img), nil
 	case stateDiscard:
 		state.img = nil
