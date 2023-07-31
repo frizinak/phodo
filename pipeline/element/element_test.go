@@ -289,6 +289,13 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 				HealSpot(0, 0, 500, 500, -500, -50),
 				HealSpot(-500, -500, 500, 500, -500, 100),
 			)
+		case text:
+			els = append(
+				els,
+				Text(-50, 0, 12, "Wooptee", RGB8(255, 0, 0), FontBold),
+				Text(-50, 0, -12, "Wooptee", RGB8(255, 0, 0), FontBold),
+				Text(10, 10, 50, "Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee Wooptee", RGB8(255, 0, 0), FontBold),
+			)
 		default:
 			constr = false
 		}

@@ -70,4 +70,7 @@ func init() {
 	pipeline.Register(PosTransparent{})
 
 	pipeline.Register(HistogramElement{})
+
+	pipeline.Register(text{})
+	pipeline.Register(ttfFontFile{})
 }

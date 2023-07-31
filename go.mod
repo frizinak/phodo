@@ -12,4 +12,7 @@ require (
 	golang.org/x/image v0.9.0
 )
 
-require github.com/klauspost/compress v1.16.7 // indirect
+require (
+	github.com/klauspost/compress v1.16.7 // indirect
+	golang.org/x/text v0.11.0 // indirect
+)
