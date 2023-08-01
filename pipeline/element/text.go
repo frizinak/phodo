@@ -141,10 +141,7 @@ func (t text) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	t.y = r.Value()
 	t.size = r.Value()
 	t.text = r.Value()
-	clr, err := r.ElementDefault(RGB16(0, 0, 0))
-	if err != nil {
-		return t, err
-	}
+	clr := r.ElementDefault(RGB16(0, 0, 0))
 	var ok bool
 	t.color, ok = clr.(Color)
 	if !ok {

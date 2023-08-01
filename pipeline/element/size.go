@@ -146,13 +146,11 @@ func (r resize) Encode(w pipeline.Writer) error {
 func (res resize) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	res.w = r.Value()
 	res.h = r.Value()
-	res.rest = make([]pipeline.Value, 0)
-	for i := 0; i < 2; i++ {
+	n := r.Len() - 2
+	res.rest = make([]pipeline.Value, n)
+	for i := 0; i < n; i++ {
 		v := r.Value()
-		if v == nil {
-			break
-		}
-		res.rest = append(res.rest, v)
+		res.rest[i] = v
 	}
 
 	return res, nil

@@ -54,10 +54,7 @@ func (b border) Encode(w pipeline.Writer) error {
 func (b border) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	b.width = r.Value()
 	const max = 1<<16 - 1
-	clr, err := r.ElementDefault(RGB16(max, max, max))
-	if err != nil {
-		return b, err
-	}
+	clr := r.ElementDefault(RGB16(max, max, max))
 	var ok bool
 	b.clr, ok = clr.(Color)
 	if !ok {
@@ -118,10 +115,7 @@ func (rect rectangle) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	rect.h = r.Value()
 	rect.b = r.Value()
 	const max = 1<<16 - 1
-	clr, err := r.ElementDefault(RGB16(max, max, max))
-	if err != nil {
-		return rect, err
-	}
+	clr := r.ElementDefault(RGB16(max, max, max))
 	var ok bool
 	rect.clr, ok = clr.(Color)
 	if !ok {
@@ -197,10 +191,7 @@ func (c circle) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	c.r = r.Value()
 	c.w = r.Value()
 	const max = 1<<16 - 1
-	clr, err := r.ElementDefault(RGB16(max, max, max))
-	if err != nil {
-		return c, err
-	}
+	clr := r.ElementDefault(RGB16(max, max, max))
 	var ok bool
 	c.clr, ok = clr.(Color)
 	if !ok {

@@ -51,12 +51,10 @@ func (c clut) Encode(w pipeline.Writer) error {
 }
 
 func (c clut) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	var err error
-
-	c.e, err = r.Element()
+	c.e = r.Element()
 	c.amount = r.ValueDefault(pipeline.PlainNumber(1))
 
-	return c, err
+	return c, nil
 }
 
 func (c clut) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {

@@ -30,8 +30,8 @@ type Reader interface {
 	Value() Value
 	ValueDefault(Value) Value
 
-	Element() (Element, error)
-	ElementDefault(Element) (Element, error)
+	Element() Element
+	ElementDefault(Element) Element
 
 	Len() int
 }
@@ -127,7 +127,6 @@ func (c AnkoCalc) execute(img *img48.Img) (Value, error) {
 		return PlainString(v), nil
 	}
 
-	// return nil, nil
 	return NilValue{}, fmt.Errorf("unknown type in calc: %T: %+v", ret, ret)
 }
 
@@ -251,7 +250,7 @@ func (e *entry) Len() int     { return len(e.values) }
 func (e *entry) ix() *entry {
 	n := e.readIndex
 	if n >= len(e.values) {
-		return &entry{err: fmt.Errorf("'%s': read arg at index %d with length %d", e.value, n, len(e.values))}
+		return &entry{err: fmt.Errorf("'%s': missing arg %d", e.value, n+1)}
 	}
 
 	e.readIndex++
@@ -262,7 +261,7 @@ func (e *entry) Hash() Hash { return e.sum }
 
 func isPlainNumber(str string) (float64, bool) {
 	if len(str) == 0 {
-		return 0, true
+		return 0, false
 	}
 
 	const num = "0123456789."
@@ -273,7 +272,7 @@ func isPlainNumber(str string) (float64, bool) {
 	}
 
 	if str[0] == '0' {
-		return 0, false
+		return 0, len(str) == 1
 	}
 
 	chk := str
@@ -303,7 +302,12 @@ func isPlainNumber(str string) (float64, bool) {
 }
 
 func (e *entry) makeValue(value *entry, def Value) Value {
-	if value.value == "" {
+	if value.err != nil {
+		if def == nil {
+			e.err = value.err
+			return NilValue{}
+		}
+
 		return def
 	}
 
@@ -323,17 +327,25 @@ func (e *entry) makeValue(value *entry, def Value) Value {
 
 func (e *entry) Value() Value                 { return e.makeValue(e.ix(), nil) }
 func (e *entry) ValueDefault(def Value) Value { return e.makeValue(e.ix(), def) }
-func (e *entry) Element() (Element, error)    { return e.ElementDefault(nil) }
+func (e *entry) Element() Element             { return e.ElementDefault(nil) }
 
-func (e *entry) ElementDefault(el Element) (Element, error) {
+func (e *entry) ElementDefault(def Element) Element {
 	ie := e.ix()
 	if ie.err != nil {
-		if el != nil {
-			return el, nil
+		if def == nil {
+			e.err = ie.err
+			return nil
 		}
-		return nil, ie.err
+
+		return def
 	}
-	return e.dec(ie)
+
+	v, err := e.dec(ie)
+	if err != nil {
+		e.err = err
+	}
+
+	return v
 }
 
 type Root struct {
@@ -522,7 +534,6 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 		if err != nil {
 			return el, err
 		}
-
 		if e.err != nil {
 			return el, e.err
 		}

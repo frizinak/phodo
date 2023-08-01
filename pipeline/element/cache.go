@@ -118,6 +118,10 @@ func (c cache) Encode(w pipeline.Writer) error {
 
 func (c cache) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	p, err := (&pipeline.Pipeline{}).Decode(r)
+	if err != nil {
+		return c, err
+	}
+
 	c.p = p.(*pipeline.Pipeline)
 	c.hash = r.Hash()
 

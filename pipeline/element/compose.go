@@ -56,11 +56,7 @@ func (p PosTransparent) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	p.p.X = r.Value()
 	p.p.Y = r.Value()
 
-	clr, err := r.Element()
-	if err != nil {
-		return p, err
-	}
-
+	clr := r.Element()
 	var ok bool
 	p.clr, ok = clr.(Color)
 	if !ok {
@@ -68,12 +64,9 @@ func (p PosTransparent) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	}
 	p._clr = p.clr.Color()
 
-	p.el, err = r.Element()
-	if err != nil {
-		return p, err
-	}
+	p.el = r.Element()
 
-	return p, err
+	return p, nil
 }
 
 type Pos struct {
@@ -120,9 +113,8 @@ func (p Pos) Encode(w pipeline.Writer) error {
 func (p Pos) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	p.p.X = r.Value()
 	p.p.Y = r.Value()
-	var err error
-	p.el, err = r.Element()
-	return p, err
+	p.el = r.Element()
+	return p, nil
 }
 
 func (p Pos) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
@@ -171,10 +163,7 @@ func (c compose) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	l := r.Len()
 	c.items = make([]Positionable, l)
 	for i := 0; i < l; i++ {
-		el, err := r.Element()
-		if err != nil {
-			return nil, err
-		}
+		el := r.Element()
 		var ok bool
 		c.items[i], ok = el.(Positionable)
 		if !ok {
