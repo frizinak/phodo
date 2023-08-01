@@ -21,7 +21,7 @@ func Once(els ...pipeline.Element) pipeline.Element {
 	return cache{
 		container: NewCacheContainer(10),
 		hash:      dummyHash{make([]byte, 1)},
-		els:       els,
+		p:         pipeline.New(els...),
 	}
 }
 
@@ -98,7 +98,7 @@ type cache struct {
 	container *CacheContainer
 
 	hash pipeline.Hash
-	els  []pipeline.Element
+	p    *pipeline.Pipeline
 }
 
 func (c cache) Name() string { return "cache" }
@@ -113,28 +113,15 @@ func (c cache) Help() [][2]string {
 }
 
 func (c cache) Encode(w pipeline.Writer) error {
-	for _, el := range c.els {
-		if err := w.Element(el); err != nil {
-			return err
-		}
-	}
-	return nil
+	return c.p.Encode(w)
 }
 
 func (c cache) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	ne := r.Len()
-	c.els = make([]pipeline.Element, ne)
-	for i := range c.els {
-		var err error
-		c.els[i], err = r.Element()
-		if err != nil {
-			return c, err
-		}
-	}
-
+	p, err := (&pipeline.Pipeline{}).Decode(r)
+	c.p = p.(*pipeline.Pipeline)
 	c.hash = r.Hash()
 
-	return c, nil
+	return c, err
 }
 
 func (c cache) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
@@ -149,7 +136,7 @@ func (c cache) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return core.ImageCopyDiscard(img), nil
 	}
 
-	img, err := pipeline.New(c.els...).Do(ctx, img)
+	img, err := c.p.Do(ctx, img)
 	if err == nil {
 		c.container.Set(hash, core.ImageCopyDiscard(img))
 	}

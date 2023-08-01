@@ -15,6 +15,10 @@ func Tee(elements ...pipeline.Element) pipeline.Element {
 	return teeElement{p: pipeline.New(elements...)}
 }
 
+func ModeOnly(which pipeline.Mode, els ...pipeline.Element) pipeline.Element {
+	return modeOnly{mode: which, p: pipeline.New(els...)}
+}
+
 type or struct {
 	list []pipeline.Element
 }
@@ -75,7 +79,7 @@ var modeName = map[pipeline.Mode]string{
 
 type modeOnly struct {
 	mode pipeline.Mode
-	list []pipeline.Element
+	p    *pipeline.Pipeline
 }
 
 func (e modeOnly) Name() string {
@@ -117,26 +121,13 @@ func (e modeOnly) Help() [][2]string {
 }
 
 func (e modeOnly) Encode(w pipeline.Writer) error {
-	for _, el := range e.list {
-		if err := w.Element(el); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return e.p.Encode(w)
 }
 
 func (e modeOnly) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	e.list = make([]pipeline.Element, r.Len())
-	for i := 0; i < r.Len(); i++ {
-		el, err := r.Element()
-		if err != nil {
-			return nil, err
-		}
-		e.list[i] = el
-	}
-
-	return e, nil
+	p, err := (&pipeline.Pipeline{}).Decode(r)
+	e.p = p.(*pipeline.Pipeline)
+	return e, err
 }
 
 func (e modeOnly) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
@@ -144,7 +135,7 @@ func (e modeOnly) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, nil
 	}
 
-	return pipeline.New(e.list...).Do(ctx, img)
+	return e.p.Do(ctx, img)
 }
 
 type teeElement struct {

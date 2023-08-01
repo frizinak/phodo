@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/frizinak/phodo/img48"
-	"github.com/frizinak/phodo/pipeline"
-	"github.com/frizinak/phodo/pipeline/element/core"
 	"image"
 	"io"
 	"testing"
+
+	"github.com/frizinak/phodo/img48"
+	"github.com/frizinak/phodo/pipeline"
+	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
 var jpeg0x0 = []byte{
@@ -298,6 +299,11 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 			)
 		case ttfFontFile:
 			// ignore
+		case modeOnly:
+			els = append(
+				els,
+				ModeOnly(pipeline.ModeConvert),
+			)
 		default:
 			constr = false
 		}
