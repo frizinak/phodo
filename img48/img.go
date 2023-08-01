@@ -72,7 +72,7 @@ func (i *Img) SubImage(r image.Rectangle) image.Image {
 }
 
 func (img *Img) YCbCrBlock8(x, y int, Y, Cb, Cr *jpeg.Block) {
-	clamp := func(v int) int {
+	clamp := func(v int) int32 {
 		if v < 0 {
 			return 0
 		}
@@ -80,7 +80,7 @@ func (img *Img) YCbCrBlock8(x, y int, Y, Cb, Cr *jpeg.Block) {
 			return 1<<8 - 1
 		}
 
-		return v
+		return int32(v)
 	}
 	xmax := img.Rect.Max.X - 1
 	ymax := img.Rect.Max.Y - 1
@@ -101,19 +101,23 @@ func (img *Img) YCbCrBlock8(x, y int, Y, Cb, Cr *jpeg.Block) {
 			cb := (-11056*r - 21712*g + 32768*b + 1<<15) >> 24
 			cr := (32768*r - 27440*g - 5328*b + 1<<15) >> 24
 
-			y = clamp(y)
-			cb = clamp(cb + 128)
-			cr = clamp(cr + 128)
-			Y[8*j+i] = int32(y)
-			Cb[8*j+i] = int32(cb)
-			Cr[8*j+i] = int32(cr)
+			Y[8*j+i] = clamp(y)
+			Cb[8*j+i] = clamp(cb + 128)
+			Cr[8*j+i] = clamp(cr + 128)
 		}
 	}
 }
 
 func New(b image.Rectangle) *Img {
+	return NewWithExif(b, nil)
+}
+
+func NewWithExif(b image.Rectangle, ex *exif.Exif) *Img {
+	if ex == nil {
+		ex = exif.New()
+	}
 	return &Img{
-		Exif:   exif.New(),
+		Exif:   ex,
 		Pix:    make([]uint16, 3*b.Dx()*b.Dy()),
 		Stride: 3 * b.Dx(),
 		Rect:   b,
