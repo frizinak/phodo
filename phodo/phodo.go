@@ -167,6 +167,10 @@ func Editor(ctx context.Context, c Conf, file string) error {
 		return nil
 	}
 
+	print := func(left, right string) {
+		fmt.Fprintf(c.out, "\033[48;5;66m\033[38;5;195m %-39s %38s \033[0m\n", left, right)
+	}
+
 	var cancel func()
 	ctx, cancel = context.WithCancel(ctx)
 	rctx := pipeline.NewContext(c.Verbose, pipeline.ModeEdit, ctx)
@@ -245,6 +249,7 @@ func Editor(ctx context.Context, c Conf, file string) error {
 	if err != nil {
 		return err
 	}
+	print("Loading image", time.Since(s).Round(time.Millisecond).String())
 
 	{
 		s, err := os.Stat(c.Script)
@@ -299,6 +304,7 @@ outer:
 		default:
 		}
 
+		s := time.Now()
 		f, err := os.Open(c.Script)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -351,14 +357,14 @@ outer:
 
 		img = core.ImageDiscard(out)
 		v.Set(img)
-		fmt.Fprintf(c.out, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", time.Since(s).Round(time.Millisecond))
-		s = time.Now()
 
+		l := "Render"
 		if fullRefreshing {
-			fmt.Fprintf(c.out, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", "Refresh")
+			l = "Render (no cache)"
 			fullRefreshing = false
 			fullRefresh = false
 		}
+		print(l, time.Since(s).Round(time.Millisecond).String())
 	}
 
 	return gerr
