@@ -131,7 +131,12 @@ func (t text) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	if err != nil {
 		return t, err
 	}
-	t.color = clr.(Color)
+	var ok bool
+	t.color, ok = clr.(Color)
+	if !ok {
+		return t, fmt.Errorf("element of type '%T' is not a Color", clr)
+	}
+
 	t.font = Font(r.StringDefault(string(FontGo)))
 
 	return t, nil

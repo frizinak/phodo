@@ -60,7 +60,12 @@ func (p PosTransparent) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	if err != nil {
 		return p, err
 	}
-	p.clr = clr.(Color)
+
+	var ok bool
+	p.clr, ok = clr.(Color)
+	if !ok {
+		return p, fmt.Errorf("element of type '%T' is not a Color", clr)
+	}
 	p._clr = p.clr.Color()
 
 	p.el, err = r.Element()

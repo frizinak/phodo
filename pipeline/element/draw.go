@@ -58,7 +58,11 @@ func (b border) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	if err != nil {
 		return b, err
 	}
-	b.clr = clr.(Color)
+	var ok bool
+	b.clr, ok = clr.(Color)
+	if !ok {
+		return b, fmt.Errorf("element of type '%T' is not a Color", clr)
+	}
 
 	return b, nil
 }
@@ -118,7 +122,11 @@ func (rect rectangle) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	if err != nil {
 		return rect, err
 	}
-	rect.clr = clr.(Color)
+	var ok bool
+	rect.clr, ok = clr.(Color)
+	if !ok {
+		return rect, fmt.Errorf("element of type '%T' is not a Color", clr)
+	}
 
 	return rect, nil
 }
@@ -193,7 +201,11 @@ func (c circle) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	if err != nil {
 		return c, err
 	}
-	c.clr = clr.(Color)
+	var ok bool
+	c.clr, ok = clr.(Color)
+	if !ok {
+		return c, fmt.Errorf("element of type '%T' is not a Color", clr)
+	}
 
 	return c, nil
 }
