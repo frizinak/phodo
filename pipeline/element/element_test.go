@@ -304,6 +304,11 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 				els,
 				ModeOnly(pipeline.ModeConvert),
 			)
+		case denoise:
+			els = append(
+				els,
+				Denoise(30),
+			)
 		default:
 			constr = false
 		}

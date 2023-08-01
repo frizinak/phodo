@@ -83,4 +83,6 @@ func init() {
 
 	pipeline.Register(text{})
 	pipeline.Register(ttfFontFile{})
+
+	pipeline.Register(denoise{})
 }
