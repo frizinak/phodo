@@ -20,10 +20,9 @@ type Writer interface {
 	String(string)
 	PlainString(string)
 	CalcString(string)
-
-	Number(Number)
-
 	Float(float64)
+
+	Value(Value)
 
 	Element(Element) error
 }
@@ -153,7 +152,7 @@ func (e *Encoder) CalcString(str string) {
 	e.PlainString(fmt.Sprintf("`%s`", str))
 }
 
-func (e *Encoder) Number(n Number) { n.Encode(e) }
+func (e *Encoder) Value(n Value) { n.Encode(e) }
 
 func (e *Encoder) Float(f float64) { e.addWord(strconv.AppendFloat(nil, f, 'f', -1, 64)) }
 

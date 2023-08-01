@@ -11,7 +11,7 @@ import (
 
 func ExifDel(path ...uint16) pipeline.Element {
 	e := exif{typ: exifDel}
-	e.arr = make([]pipeline.Number, len(path))
+	e.arr = make([]pipeline.Value, len(path))
 	for i := range path {
 		e.arr[i] = pipeline.PlainNumber(int(path[i]))
 	}
@@ -20,7 +20,7 @@ func ExifDel(path ...uint16) pipeline.Element {
 
 func ExifAllow(list []uint16) pipeline.Element {
 	e := exif{typ: exifAllow}
-	e.arr = make([]pipeline.Number, len(list))
+	e.arr = make([]pipeline.Value, len(list))
 	for i := range list {
 		e.arr[i] = pipeline.PlainNumber(int(list[i]))
 	}
@@ -28,7 +28,7 @@ func ExifAllow(list []uint16) pipeline.Element {
 }
 
 type exif struct {
-	arr []pipeline.Number
+	arr []pipeline.Value
 	typ uint8
 }
 
@@ -75,7 +75,7 @@ func (x exif) Help() [][2]string {
 
 func (x exif) Encode(w pipeline.Writer) error {
 	for _, v := range x.arr {
-		w.Number(v)
+		w.Value(v)
 	}
 
 	return nil
@@ -83,7 +83,7 @@ func (x exif) Encode(w pipeline.Writer) error {
 
 func (x exif) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	for n := 0; n < r.Len(); n++ {
-		x.arr = append(x.arr, r.Number())
+		x.arr = append(x.arr, r.Value())
 	}
 
 	if len(x.arr) > 4 && x.typ == exifDel {

@@ -279,9 +279,9 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 		case HistogramElement:
 			els = append(
 				els,
-				Histogram(),
 				Histogram().RGBImage().BarSize(5).Size(5, 8),
 				Histogram().RGBImage().BarSize(-5).Size(-500, 800),
+				Histogram().Image().BarSize(-5).Size(-500, 800),
 			)
 		case healSpot:
 			els = append(

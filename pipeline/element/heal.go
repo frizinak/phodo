@@ -19,32 +19,32 @@ func HealSpot(x1, y1, x2, y2, outerRadius, innerRadius int) pipeline.Element {
 }
 
 type healSpot struct {
-	x1, y1 pipeline.Number
-	x2, y2 pipeline.Number
-	r, ir  pipeline.Number
+	x1, y1 pipeline.Value
+	x2, y2 pipeline.Value
+	r, ir  pipeline.Value
 }
 
 func (healSpot) Name() string { return "heal-spot" }
 func (healSpot) Inline() bool { return true }
 
 func (spot healSpot) Encode(w pipeline.Writer) error {
-	w.Number(spot.x1)
-	w.Number(spot.y1)
-	w.Number(spot.x2)
-	w.Number(spot.y2)
-	w.Number(spot.r)
-	w.Number(spot.ir)
+	w.Value(spot.x1)
+	w.Value(spot.y1)
+	w.Value(spot.x2)
+	w.Value(spot.y2)
+	w.Value(spot.r)
+	w.Value(spot.ir)
 
 	return nil
 }
 
 func (spot healSpot) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	spot.x1 = r.Number()
-	spot.y1 = r.Number()
-	spot.x2 = r.Number()
-	spot.y2 = r.Number()
-	spot.r = r.Number()
-	spot.ir = r.NumberDefault(0)
+	spot.x1 = r.Value()
+	spot.y1 = r.Value()
+	spot.x2 = r.Value()
+	spot.y2 = r.Value()
+	spot.r = r.Value()
+	spot.ir = r.ValueDefault(pipeline.NilValue{})
 
 	return spot, nil
 }

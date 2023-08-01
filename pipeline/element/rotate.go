@@ -50,7 +50,7 @@ func (o orient) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return img, nil
 }
 
-type rotate struct{ n pipeline.Number }
+type rotate struct{ n pipeline.Value }
 
 func (rotate) Name() string { return "rotate" }
 func (rotate) Inline() bool { return true }
@@ -65,13 +65,13 @@ func (r rotate) Help() [][2]string {
 }
 
 func (r rotate) Encode(w pipeline.Writer) error {
-	w.Number(r.n)
+	w.Value(r.n)
 	return nil
 }
 
 func (r rotate) Decode(rdr pipeline.Reader) (pipeline.Element, error) {
 	return rotate{
-		n: rdr.Number(),
+		n: rdr.Value(),
 	}, nil
 }
 

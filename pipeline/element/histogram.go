@@ -19,18 +19,20 @@ func init() {
 
 func Histogram() HistogramElement {
 	return HistogramElement{
-		output:   0,
-		barWidth: pipeline.PlainNumber(0),
-		w:        pipeline.PlainNumber(0),
-		h:        pipeline.PlainNumber(0),
+		outputValue: pipeline.PlainString(""),
+		output:      0,
+		barWidth:    pipeline.PlainNumber(0),
+		w:           pipeline.PlainNumber(0),
+		h:           pipeline.PlainNumber(0),
 	}
 }
 
 type HistogramElement struct {
-	barWidth pipeline.Number
-	w, h     pipeline.Number
-	output   uint8
-	ipol     bool
+	barWidth    pipeline.Value
+	w, h        pipeline.Value
+	outputValue pipeline.Value
+	output      uint8
+	ipol        bool
 }
 
 func (h HistogramElement) Interpolated() HistogramElement {
@@ -50,11 +52,16 @@ func (h HistogramElement) Size(width, height int) HistogramElement {
 
 func (h HistogramElement) RGBImage() HistogramElement {
 	h.output |= outputRGB
-	return h
+	return h.upoutput()
 }
 
 func (h HistogramElement) Image() HistogramElement {
 	h.output |= outputWhite
+	return h.upoutput()
+}
+
+func (h HistogramElement) upoutput() HistogramElement {
+	h.outputValue = pipeline.PlainString(outputName[h.output])
 	return h
 }
 
@@ -100,24 +107,19 @@ func (h HistogramElement) Help() [][2]string {
 }
 
 func (h HistogramElement) Encode(w pipeline.Writer) error {
-	w.PlainString(outputName[h.output])
-	w.Number(h.w)
-	w.Number(h.h)
-	w.Number(h.barWidth)
+	w.Value(h.outputValue)
+	w.Value(h.w)
+	w.Value(h.h)
+	w.Value(h.barWidth)
 
 	return nil
 }
 
 func (h HistogramElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	var ok bool
-	typ := r.String()
-	h.output, ok = outputValue[typ]
-	if !ok {
-		return nil, fmt.Errorf("invalid historgram type: '%s'", typ)
-	}
-	h.w = r.Number()
-	h.h = r.Number()
-	h.barWidth = r.Number()
+	h.outputValue = r.Value()
+	h.w = r.Value()
+	h.h = r.Value()
+	h.barWidth = r.Value()
 	return h, nil
 }
 
@@ -126,6 +128,17 @@ func (hist HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Im
 
 	if img == nil {
 		return img, pipeline.NewErrNeedImageInput(hist.Name())
+	}
+
+	typ, err := hist.outputValue.String(img)
+	if err != nil {
+		return img, err
+	}
+
+	var ok bool
+	hist.output, ok = outputValue[typ]
+	if !ok {
+		return img, fmt.Errorf("invalid historgram type: '%s'", typ)
 	}
 
 	barWidth, err := hist.barWidth.Int(img)

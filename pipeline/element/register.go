@@ -2,7 +2,6 @@ package element
 
 import (
 	"github.com/frizinak/phodo/pipeline"
-	"github.com/frizinak/phodo/pipeline/element/core"
 	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/gofont/goregular"
 )
@@ -70,9 +69,9 @@ func init() {
 	pipeline.Register(saturation{})
 	pipeline.Register(black{})
 
-	pipeline.Register(resize{})
-	pipeline.Register(resize{opts: core.ResizeMin})
-	pipeline.Register(resize{opts: core.ResizeMax})
+	pipeline.Register(resize{name: resizeNormal})
+	pipeline.Register(resize{name: resizeClip})
+	pipeline.Register(resize{name: resizeFit})
 
 	pipeline.Register(crop{})
 

@@ -27,11 +27,8 @@ type Reader interface {
 	Name() string
 	Hash() Hash
 
-	String() string
-	StringDefault(string) string
-
-	Number() Number
-	NumberDefault(float64) Number
+	Value() Value
+	ValueDefault(Value) Value
 
 	Element() (Element, error)
 	ElementDefault(Element) (Element, error)
@@ -39,11 +36,19 @@ type Reader interface {
 	Len() int
 }
 
-type Number interface {
+type Value interface {
 	Float64(img *img48.Img) (float64, error)
 	Int(img *img48.Img) (int, error)
+	String(img *img48.Img) (string, error)
 	Encode(w Writer)
 }
+
+type NilValue struct{}
+
+func (n NilValue) Float64(img *img48.Img) (float64, error) { return 0, nil }
+func (n NilValue) Int(img *img48.Img) (int, error)         { return 0, nil }
+func (n NilValue) String(img *img48.Img) (string, error)   { return "", nil }
+func (n NilValue) Encode(w Writer)                         { w.String("") }
 
 type PlainNumber float64
 
@@ -55,7 +60,33 @@ func (pn PlainNumber) Int(img *img48.Img) (int, error) {
 	return int(pn), nil
 }
 
+func (pn PlainNumber) String(img *img48.Img) (string, error) {
+	return strconv.FormatFloat(float64(pn), 'f', -1, 64), nil
+}
+
 func (pn PlainNumber) Encode(w Writer) { w.Float(float64(pn)) }
+
+type PlainString string
+
+func (ps PlainString) Float64(img *img48.Img) (float64, error) {
+	if len(ps) > 2 && ps[0] == '0' && ps[1] == 'x' {
+		f, err := strconv.ParseUint(string(ps[2:]), 16, 64)
+		return float64(f), err
+	}
+
+	return strconv.ParseFloat(string(ps), 64)
+}
+
+func (ps PlainString) Int(img *img48.Img) (int, error) {
+	v, err := ps.Float64(img)
+	return int(v), err
+}
+
+func (ps PlainString) String(img *img48.Img) (string, error) {
+	return string(ps), nil
+}
+
+func (ps PlainString) Encode(w Writer) { w.String(string(ps)) }
 
 type AnkoCalc struct {
 	env  *env.Env
@@ -64,7 +95,7 @@ type AnkoCalc struct {
 
 func (c AnkoCalc) Encode(w Writer) { w.CalcString(c.calc) }
 
-func (c AnkoCalc) execute(img *img48.Img) (float64, error) {
+func (c AnkoCalc) execute(img *img48.Img) (Value, error) {
 	if img != nil {
 		w, h := img.Rect.Dx(), img.Rect.Dy()
 		m := map[string]interface{}{
@@ -75,7 +106,7 @@ func (c AnkoCalc) execute(img *img48.Img) (float64, error) {
 
 		for k, v := range m {
 			if err := c.env.Define(k, v); err != nil {
-				return 0, err
+				return NilValue{}, err
 			}
 		}
 	}
@@ -83,28 +114,45 @@ func (c AnkoCalc) execute(img *img48.Img) (float64, error) {
 	ret, err := vm.Execute(c.env, nil, c.calc)
 	if err != nil {
 		err = fmt.Errorf("anko error in `%s`: %w", c.calc, err)
-		return 0, err
+		return NilValue{}, err
 	}
 	switch v := ret.(type) {
 	case float64:
-		return v, nil
+		return PlainNumber(v), nil
 	case int:
-		return float64(v), nil
+		return PlainNumber(v), nil
 	case int64:
-		return float64(v), nil
+		return PlainNumber(v), nil
+	case string:
+		return PlainString(v), nil
 	}
 
-	return 0, nil
-	// return 0, fmt.Errorf("unknown type in calc: %T: %+v", ret, ret)
+	// return nil, nil
+	return NilValue{}, fmt.Errorf("unknown type in calc: %T: %+v", ret, ret)
 }
 
 func (c AnkoCalc) Float64(img *img48.Img) (float64, error) {
-	return c.execute(img)
+	v, err := c.execute(img)
+	if err != nil {
+		return 0, err
+	}
+	return v.Float64(nil)
 }
 
 func (c AnkoCalc) Int(img *img48.Img) (int, error) {
-	val, err := c.execute(img)
-	return int(val), err
+	v, err := c.execute(img)
+	if err != nil {
+		return 0, err
+	}
+	return v.Int(nil)
+}
+
+func (c AnkoCalc) String(img *img48.Img) (string, error) {
+	v, err := c.execute(img)
+	if err != nil {
+		return "", err
+	}
+	return v.String(nil)
 }
 
 type errReader struct {
@@ -161,6 +209,8 @@ type Hash interface {
 type entry struct {
 	env *env.Env
 
+	anko bool
+
 	values []*entry
 	value  string
 
@@ -187,13 +237,16 @@ func (e entry) Dump(depth int) string {
 	for k, v := range e.values {
 		values[k] = v.Dump(depth + 1)
 	}
+	calc := ""
+	if e.anko {
+		calc = " (anko)"
+	}
 
-	return fmt.Sprintf("%s%s:\n%s", string(p), e.value, strings.Join(values, ""))
+	return fmt.Sprintf("%s%s%s:\n%s", string(p), e.value, calc, strings.Join(values, ""))
 }
 
-func (e *entry) Name() string  { return e.value }
-func (e *entry) Value() string { return e.value }
-func (e *entry) Len() int      { return len(e.values) }
+func (e *entry) Name() string { return e.value }
+func (e *entry) Len() int     { return len(e.values) }
 
 func (e *entry) ix() *entry {
 	n := e.readIndex
@@ -217,6 +270,10 @@ func isPlainNumber(str string) (float64, bool) {
 	if len(str) > 1 && str[len(str)-1] == '%' {
 		str = str[:len(str)-1]
 		pct = true
+	}
+
+	if str[0] == '0' {
+		return 0, false
 	}
 
 	chk := str
@@ -245,38 +302,28 @@ func isPlainNumber(str string) (float64, bool) {
 	return 0, false
 }
 
-func (e *entry) number(str string) Number {
-	num, ok := isPlainNumber(str)
-	if ok {
-		return PlainNumber(num)
+func (e *entry) makeValue(value *entry, def Value) Value {
+	if value.value == "" {
+		return def
 	}
 
-	return AnkoCalc{
-		env:  e.env,
-		calc: str,
+	if value.anko {
+		return AnkoCalc{
+			env:  e.env,
+			calc: value.value,
+		}
 	}
-}
 
-func (e *entry) Number() Number { return e.number(e.String()) }
-
-func (e *entry) NumberDefault(def float64) Number {
-	return e.number(e.StringDefault(fmt.Sprintf("%f", def)))
-}
-
-func (e *entry) String() string                  { return e.string(nil) }
-func (e *entry) StringDefault(def string) string { return e.string(&def) }
-
-func (e *entry) string(def *string) string {
-	val := e.ix().value
-	if val == "" && def != nil {
-		return *def
+	if v, ok := isPlainNumber(value.value); ok {
+		return PlainNumber(v)
 	}
-	return val
+
+	return PlainString(value.value)
 }
 
-func (e *entry) Element() (Element, error) {
-	return e.ElementDefault(nil)
-}
+func (e *entry) Value() Value                 { return e.makeValue(e.ix(), nil) }
+func (e *entry) ValueDefault(def Value) Value { return e.makeValue(e.ix(), def) }
+func (e *entry) Element() (Element, error)    { return e.ElementDefault(nil) }
 
 func (e *entry) ElementDefault(el Element) (Element, error) {
 	ie := e.ix()
@@ -369,7 +416,6 @@ func (p *propagator) Value() []byte { return p.d }
 func (p *propagator) set(d []byte)      { p.d = d }
 func (p *propagator) add(c *propagator) { p.c = append(p.c, c) }
 
-// func (p *propagator) add(d []byte) { p.d = append(p.d, d...) }
 func (p *propagator) new() *propagator {
 	n := &propagator{}
 	p.c = append(p.c, n)
@@ -536,7 +582,7 @@ func (d *Decoder) decode(calcenv *env.Env, vars map[string]string, includes *[]s
 
 func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes *[]string) (*entry, error) {
 	buf := make([]rune, 0, 1)
-	var str, esc, calc, inc bool
+	var str, esc, calc, wasCalc, inc bool
 	varbuf := make([]rune, 0, 1)
 
 	for {
@@ -582,6 +628,7 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 
 		case r == calcClose && calc:
 			calc = false
+			wasCalc = true
 
 		case (space || r == parenClose) && !str && !esc && !calc && !inc:
 			val := strings.TrimSpace(string(buf))
@@ -591,7 +638,8 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 				}
 				break
 			}
-			e.values = append(e.values, &entry{env: e.env, value: val})
+			e.values = append(e.values, &entry{env: e.env, value: val, anko: wasCalc})
+			wasCalc = false
 			buf = buf[:0]
 			if r == parenClose {
 				return e, nil

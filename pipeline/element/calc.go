@@ -8,7 +8,7 @@ import (
 )
 
 type calc struct {
-	calc pipeline.Number
+	calc pipeline.Value
 }
 
 func (calc) Name() string { return "calc" }
@@ -28,12 +28,12 @@ func (c calc) Help() [][2]string {
 }
 
 func (c calc) Encode(w pipeline.Writer) error {
-	w.Number(c.calc)
+	w.Value(c.calc)
 	return nil
 }
 
 func (c calc) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.calc = r.Number()
+	c.calc = r.Value()
 	return c, nil
 }
 

@@ -32,22 +32,22 @@ func WhiteBalanceSpot(x, y, r int) pipeline.Element {
 	}
 }
 
-type rgbAdd struct{ r, g, b pipeline.Number }
+type rgbAdd struct{ r, g, b pipeline.Value }
 
 func (rgbAdd) Name() string { return "rgb-add" }
 func (rgbAdd) Inline() bool { return true }
 
 func (r rgbAdd) Encode(w pipeline.Writer) error {
-	w.Number(r.r)
-	w.Number(r.g)
-	w.Number(r.b)
+	w.Value(r.r)
+	w.Value(r.g)
+	w.Value(r.b)
 	return nil
 }
 
 func (rgb rgbAdd) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	rgb.r = r.Number()
-	rgb.g = r.Number()
-	rgb.b = r.Number()
+	rgb.r = r.Value()
+	rgb.g = r.Value()
+	rgb.b = r.Value()
 	return rgb, nil
 }
 
@@ -89,22 +89,22 @@ func (rgb rgbAdd) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return img, nil
 }
 
-type rgbMul struct{ r, g, b pipeline.Number }
+type rgbMul struct{ r, g, b pipeline.Value }
 
 func (rgbMul) Name() string { return "rgb-multiply" }
 func (rgbMul) Inline() bool { return true }
 
 func (r rgbMul) Encode(w pipeline.Writer) error {
-	w.Number(r.r)
-	w.Number(r.g)
-	w.Number(r.b)
+	w.Value(r.r)
+	w.Value(r.g)
+	w.Value(r.b)
 	return nil
 }
 
 func (rgb rgbMul) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	rgb.r = r.Number()
-	rgb.g = r.Number()
-	rgb.b = r.Number()
+	rgb.r = r.Value()
+	rgb.g = r.Value()
+	rgb.b = r.Value()
 	return rgb, nil
 }
 
@@ -147,24 +147,24 @@ func (rgb rgbMul) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 }
 
 type whiteBalanceSpot struct {
-	x, y pipeline.Number
-	r    pipeline.Number
+	x, y pipeline.Value
+	r    pipeline.Value
 }
 
 func (whiteBalanceSpot) Name() string { return "white-balance-spot" }
 func (whiteBalanceSpot) Inline() bool { return true }
 
 func (wb whiteBalanceSpot) Encode(w pipeline.Writer) error {
-	w.Number(wb.x)
-	w.Number(wb.y)
-	w.Number(wb.r)
+	w.Value(wb.x)
+	w.Value(wb.y)
+	w.Value(wb.r)
 	return nil
 }
 
 func (wb whiteBalanceSpot) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	wb.x = r.Number()
-	wb.y = r.Number()
-	wb.r = r.Number()
+	wb.x = r.Value()
+	wb.y = r.Value()
+	wb.r = r.Value()
 	return wb, nil
 }
 

@@ -45,15 +45,15 @@ func (s *StateContainer) Save(name string) pipeline.Element {
 func (s *StateContainer) store(name string) pipeline.Element {
 	state := &state{}
 	s.l[name] = state
-	return stateElement{name, stateStore}
+	return stateElement{pipeline.PlainString(name), stateStore}
 }
 
 func (s *StateContainer) Load(name string) pipeline.Element {
-	return stateElement{name, stateRestore}
+	return stateElement{pipeline.PlainString(name), stateRestore}
 }
 
 func (s *StateContainer) Discard(name string) pipeline.Element {
-	return stateElement{name, stateDiscard}
+	return stateElement{pipeline.PlainString(name), stateDiscard}
 }
 
 func (s *StateContainer) Clear() { s.l = make(map[string]*state) }
@@ -75,7 +75,7 @@ type state struct {
 }
 
 type stateElement struct {
-	name string
+	name pipeline.Value
 	typ  uint8
 }
 
@@ -118,24 +118,29 @@ func (s stateElement) Help() [][2]string {
 }
 
 func (s stateElement) Encode(w pipeline.Writer) error {
-	w.String(s.name)
+	w.Value(s.name)
 	return nil
 }
 
 func (s stateElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	s.name = r.String()
+	s.name = r.Value()
 	return s, nil
 }
 
 func (s stateElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
-	ctx.Mark(s, stateName[s.typ], s.name)
-
-	gstate := stateContainer(ctx)
-	if _, ok := gstate.l[s.name]; !ok {
-		gstate.l[s.name] = &state{}
+	name, err := s.name.String(img)
+	if err != nil {
+		return img, err
 	}
 
-	state := gstate.l[s.name]
+	ctx.Mark(s, stateName[s.typ], name)
+
+	gstate := stateContainer(ctx)
+	if _, ok := gstate.l[name]; !ok {
+		gstate.l[name] = &state{}
+	}
+
+	state := gstate.l[name]
 
 	switch s.typ {
 	case stateStore:

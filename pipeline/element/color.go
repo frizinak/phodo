@@ -69,23 +69,21 @@ type Color interface {
 }
 
 type clrHex struct {
-	str string
-	clrRGB16
+	str pipeline.Value
+	c   Color
 }
 
 func (clrHex) Name() string { return "hex" }
 func (clrHex) Inline() bool { return true }
 
 func (hex clrHex) Encode(w pipeline.Writer) error {
-	w.String(hex.str)
+	w.Value(hex.str)
 	return nil
 }
 
 func (hex clrHex) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	hex.str = r.String()
-	var err error
-	hex.clrRGB16, err = Hex(hex.str)
-	return hex, err
+	hex.str = r.Value()
+	return hex, nil
 }
 
 func (hex clrHex) Help() [][2]string {
@@ -98,24 +96,40 @@ func (hex clrHex) Help() [][2]string {
 	}
 }
 
+func (hex clrHex) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	return img, nil
+}
+
+func (hex clrHex) Color() [3]uint16 {
+	str, err := hex.str.String(nil)
+	if err != nil {
+		panic(err)
+	}
+	hex.c, err = Hex(str)
+	if err != nil {
+		panic(err)
+	}
+	return hex.c.Color()
+}
+
 type clrRGB struct {
-	r, g, b pipeline.Number
+	r, g, b pipeline.Value
 }
 
 func (clrRGB) Name() string { return "rgb" }
 func (clrRGB) Inline() bool { return true }
 
 func (clr clrRGB) Encode(w pipeline.Writer) error {
-	w.Number(clr.r)
-	w.Number(clr.r)
-	w.Number(clr.r)
+	w.Value(clr.r)
+	w.Value(clr.r)
+	w.Value(clr.r)
 	return nil
 }
 
 func (clr clrRGB) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	clr.r = r.Number()
-	clr.g = r.Number()
-	clr.b = r.Number()
+	clr.r = r.Value()
+	clr.g = r.Value()
+	clr.b = r.Value()
 	return clr, nil
 }
 
@@ -152,23 +166,23 @@ func (clr clrRGB) Color() [3]uint16 {
 }
 
 type clrRGB16 struct {
-	r, g, b pipeline.Number
+	r, g, b pipeline.Value
 }
 
 func (clrRGB16) Name() string { return "rgb16" }
 func (clrRGB16) Inline() bool { return true }
 
 func (clr clrRGB16) Encode(w pipeline.Writer) error {
-	w.Number(clr.r)
-	w.Number(clr.g)
-	w.Number(clr.b)
+	w.Value(clr.r)
+	w.Value(clr.g)
+	w.Value(clr.b)
 	return nil
 }
 
 func (clr clrRGB16) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	clr.r = r.Number()
-	clr.g = r.Number()
-	clr.b = r.Number()
+	clr.r = r.Value()
+	clr.g = r.Value()
+	clr.b = r.Value()
 	return clr, nil
 }
 

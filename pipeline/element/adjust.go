@@ -15,7 +15,7 @@ func Saturation(n float64) pipeline.Element { return saturation{n: pipeline.Plai
 func Black(n float64) pipeline.Element      { return black{n: pipeline.PlainNumber(n)} }
 
 type contrast struct {
-	n pipeline.Number
+	n pipeline.Value
 }
 
 func (c contrast) Name() string { return "contrast" }
@@ -31,12 +31,12 @@ func (c contrast) Help() [][2]string {
 }
 
 func (c contrast) Encode(w pipeline.Writer) error {
-	w.Number(c.n)
+	w.Value(c.n)
 	return nil
 }
 
 func (c contrast) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.n = r.Number()
+	c.n = r.Value()
 	return c, nil
 }
 
@@ -58,7 +58,7 @@ func (c contrast) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 }
 
 type brightness struct {
-	n pipeline.Number
+	n pipeline.Value
 }
 
 func (b brightness) Name() string { return "brightness" }
@@ -74,12 +74,12 @@ func (b brightness) Help() [][2]string {
 }
 
 func (b brightness) Encode(w pipeline.Writer) error {
-	w.Number(b.n)
+	w.Value(b.n)
 	return nil
 }
 
 func (b brightness) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	b.n = r.Number()
+	b.n = r.Value()
 	return b, nil
 }
 
@@ -101,7 +101,7 @@ func (b brightness) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error)
 }
 
 type gamma struct {
-	n pipeline.Number
+	n pipeline.Value
 }
 
 func (g gamma) Name() string { return "gamma" }
@@ -117,12 +117,12 @@ func (g gamma) Help() [][2]string {
 }
 
 func (g gamma) Encode(w pipeline.Writer) error {
-	w.Number(g.n)
+	w.Value(g.n)
 	return nil
 }
 
 func (g gamma) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	g.n = r.Number()
+	g.n = r.Value()
 	return g, nil
 }
 
@@ -144,7 +144,7 @@ func (g gamma) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 }
 
 type saturation struct {
-	n pipeline.Number
+	n pipeline.Value
 }
 
 func (s saturation) Name() string { return "saturation" }
@@ -160,12 +160,12 @@ func (s saturation) Help() [][2]string {
 }
 
 func (s saturation) Encode(w pipeline.Writer) error {
-	w.Number(s.n)
+	w.Value(s.n)
 	return nil
 }
 
 func (s saturation) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	s.n = r.Number()
+	s.n = r.Value()
 	return s, nil
 }
 
@@ -187,7 +187,7 @@ func (s saturation) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error)
 }
 
 type black struct {
-	n pipeline.Number
+	n pipeline.Value
 }
 
 func (b black) Name() string { return "black" }
@@ -203,12 +203,12 @@ func (b black) Help() [][2]string {
 }
 
 func (b black) Encode(w pipeline.Writer) error {
-	w.Number(b.n)
+	w.Value(b.n)
 	return nil
 }
 
 func (b black) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	b.n = r.Number()
+	b.n = r.Value()
 	return b, nil
 }
 

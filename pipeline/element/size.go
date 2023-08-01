@@ -10,15 +10,34 @@ import (
 	"golang.org/x/image/draw"
 )
 
+const (
+	resizeNormal = "resize"
+	resizeClip   = "resize-clip"
+	resizeFit    = "resize-fit"
+)
+
 func Resize(w, h int, kernel Kernel, opts core.ResizeOptions) pipeline.Element {
-	if kernel == "" {
-		kernel = KernelBox
+	rest := make([]pipeline.Value, 0)
+	if kernel != "" {
+		rest = append(rest, pipeline.PlainString(kernel))
 	}
+	if opts&core.ResizeNoUpscale == 0 {
+		rest = append(rest, pipeline.PlainString("upscale"))
+	}
+
+	name := resizeNormal
+	if opts&core.ResizeMin != 0 {
+		name = resizeClip
+	}
+	if opts&core.ResizeMax != 0 {
+		name = resizeFit
+	}
+
 	return resize{
-		w:      pipeline.PlainNumber(w),
-		h:      pipeline.PlainNumber(h),
-		kernel: kernel,
-		opts:   opts,
+		name: name,
+		w:    pipeline.PlainNumber(w),
+		h:    pipeline.PlainNumber(h),
+		rest: rest,
 	}
 }
 
@@ -54,20 +73,13 @@ func RegisterKernel(name Kernel, k draw.Kernel) {
 }
 
 type resize struct {
-	w, h   pipeline.Number
-	kernel Kernel
-	opts   core.ResizeOptions
+	name string
+
+	w, h pipeline.Value
+	rest []pipeline.Value
 }
 
-func (r resize) Name() string {
-	if r.opts&core.ResizeMin != 0 {
-		return "resize-clip"
-	} else if r.opts&core.ResizeMax != 0 {
-		return "resize-fit"
-	}
-
-	return "resize"
-}
+func (r resize) Name() string { return r.name }
 
 func (resize) Inline() bool { return true }
 
@@ -84,12 +96,12 @@ func (r resize) Help() [][2]string {
 	}
 
 	switch r.Name() {
-	case "resize":
+	case resizeNormal:
 		d = append(d, [2]string{
 			"",
 			"Resizes to <width>x<height> exactly.",
 		})
-	case "resize-clip":
+	case resizeClip:
 		d = append(d, [2]string{
 			"",
 			"Resize the image so that it is at least <width> pixels wide and",
@@ -98,7 +110,7 @@ func (r resize) Help() [][2]string {
 			"",
 			"<height> pixels high, while maintaining aspect ratio.",
 		})
-	case "resize-fit":
+	case resizeFit:
 		d = append(d, [2]string{
 			"",
 			"Resize the image so that it is at most <width> pixels wide and",
@@ -122,40 +134,28 @@ func (r resize) Help() [][2]string {
 }
 
 func (r resize) Encode(w pipeline.Writer) error {
-	w.Number(r.w)
-	w.Number(r.h)
-	w.PlainString(string(r.kernel))
-	if r.opts&core.ResizeNoUpscale == 0 {
-		w.PlainString("upscale")
+	w.Value(r.w)
+	w.Value(r.h)
+	for _, v := range r.rest {
+		w.Value(v)
 	}
 
 	return nil
 }
 
 func (res resize) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	opts := core.ResizeNoUpscale
-
-	n := res.Name()
-	if n == "resize-clip" {
-		opts |= core.ResizeMin
-	} else if n == "resize-fit" {
-		opts |= core.ResizeMax
-	}
-
-	w := r.Number()
-	h := r.Number()
-	rest := []string{r.String(), r.String()}
-
-	kernel := KernelBox
-	for _, r := range rest {
-		if _, ok := kernels[Kernel(r)]; ok {
-			kernel = Kernel(r)
-		} else if r == "upscale" {
-			opts &= (^core.ResizeNoUpscale)
+	res.w = r.Value()
+	res.h = r.Value()
+	res.rest = make([]pipeline.Value, 0)
+	for i := 0; i < 2; i++ {
+		v := r.Value()
+		if v == nil {
+			break
 		}
+		res.rest = append(res.rest, v)
 	}
 
-	return resize{w: w, h: h, kernel: kernel, opts: opts}, nil
+	return res, nil
 }
 
 func (r resize) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
@@ -163,6 +163,15 @@ func (r resize) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 
 	if img == nil {
 		return img, pipeline.NewErrNeedImageInput(r.Name())
+	}
+
+	kernel := KernelBox
+	opts := core.ResizeNoUpscale
+	n := r.Name()
+	if n == resizeClip {
+		opts |= core.ResizeMin
+	} else if n == resizeFit {
+		opts |= core.ResizeMax
 	}
 
 	w, err := r.w.Int(img)
@@ -174,12 +183,28 @@ func (r resize) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, err
 	}
 
-	return core.ImageResize(img, kernels[r.kernel], r.opts, w, h), nil
+	for _, r := range r.rest {
+		if r == nil {
+			break
+		}
+		str, err := r.String(img)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, ok := kernels[Kernel(str)]; ok {
+			kernel = Kernel(str)
+		} else if str == "upscale" {
+			opts &= (^core.ResizeNoUpscale)
+		}
+	}
+
+	return core.ImageResize(img, kernels[kernel], opts, w, h), nil
 }
 
 type crop struct {
-	x, y pipeline.Number
-	w, h pipeline.Number
+	x, y pipeline.Value
+	w, h pipeline.Value
 }
 
 func (crop) Name() string { return "crop" }
@@ -195,18 +220,18 @@ func (c crop) Help() [][2]string {
 }
 
 func (c crop) Encode(w pipeline.Writer) error {
-	w.Number(c.x)
-	w.Number(c.y)
-	w.Number(c.w)
-	w.Number(c.h)
+	w.Value(c.x)
+	w.Value(c.y)
+	w.Value(c.w)
+	w.Value(c.h)
 	return nil
 }
 
 func (c crop) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.x = r.Number()
-	c.y = r.Number()
-	c.w = r.Number()
-	c.h = r.Number()
+	c.x = r.Value()
+	c.y = r.Value()
+	c.w = r.Value()
+	c.h = r.Value()
 	return c, nil
 }
 

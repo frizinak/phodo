@@ -14,7 +14,7 @@ func CLUT(e pipeline.Element, amount float64) pipeline.Element {
 
 type clut struct {
 	e      pipeline.Element
-	amount pipeline.Number
+	amount pipeline.Value
 }
 
 func (clut) Name() string { return "clut" }
@@ -46,7 +46,7 @@ func (c clut) Help() [][2]string {
 
 func (c clut) Encode(w pipeline.Writer) error {
 	err := w.Element(c.e)
-	w.Number(c.amount)
+	w.Value(c.amount)
 	return err
 }
 
@@ -54,7 +54,7 @@ func (c clut) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	var err error
 
 	c.e, err = r.Element()
-	c.amount = r.NumberDefault(1)
+	c.amount = r.ValueDefault(pipeline.PlainNumber(1))
 
 	return c, err
 }

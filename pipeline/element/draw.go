@@ -40,19 +40,19 @@ func Rectangle(x, y, w, h, border int, clr Color) pipeline.Element {
 }
 
 type border struct {
-	width pipeline.Number
+	width pipeline.Value
 	clr   Color
 }
 
 func (border) Name() string { return "border" }
 func (border) Inline() bool { return true }
 func (b border) Encode(w pipeline.Writer) error {
-	w.Number(b.width)
+	w.Value(b.width)
 	return w.Element(b.clr)
 }
 
 func (b border) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	b.width = r.Number()
+	b.width = r.Value()
 	const max = 1<<16 - 1
 	clr, err := r.ElementDefault(RGB16(max, max, max))
 	if err != nil {
@@ -94,29 +94,29 @@ func (b border) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 }
 
 type rectangle struct {
-	x, y pipeline.Number
-	w, h pipeline.Number
-	b    pipeline.Number
+	x, y pipeline.Value
+	w, h pipeline.Value
+	b    pipeline.Value
 	clr  Color
 }
 
 func (rectangle) Name() string { return "rectangle" }
 func (rectangle) Inline() bool { return true }
 func (r rectangle) Encode(w pipeline.Writer) error {
-	w.Number(r.x)
-	w.Number(r.y)
-	w.Number(r.w)
-	w.Number(r.h)
-	w.Number(r.b)
+	w.Value(r.x)
+	w.Value(r.y)
+	w.Value(r.w)
+	w.Value(r.h)
+	w.Value(r.b)
 	return w.Element(r.clr)
 }
 
 func (rect rectangle) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	rect.x = r.Number()
-	rect.y = r.Number()
-	rect.w = r.Number()
-	rect.h = r.Number()
-	rect.b = r.Number()
+	rect.x = r.Value()
+	rect.y = r.Value()
+	rect.w = r.Value()
+	rect.h = r.Value()
+	rect.b = r.Value()
 	const max = 1<<16 - 1
 	clr, err := r.ElementDefault(RGB16(max, max, max))
 	if err != nil {
@@ -175,27 +175,27 @@ func (r rectangle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) 
 }
 
 type circle struct {
-	x, y pipeline.Number
-	r    pipeline.Number
-	w    pipeline.Number
+	x, y pipeline.Value
+	r    pipeline.Value
+	w    pipeline.Value
 	clr  Color
 }
 
 func (circle) Name() string { return "circle" }
 func (circle) Inline() bool { return true }
 func (c circle) Encode(w pipeline.Writer) error {
-	w.Number(c.x)
-	w.Number(c.y)
-	w.Number(c.r)
-	w.Number(c.w)
+	w.Value(c.x)
+	w.Value(c.y)
+	w.Value(c.r)
+	w.Value(c.w)
 	return w.Element(c.clr)
 }
 
 func (c circle) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.x = r.Number()
-	c.y = r.Number()
-	c.r = r.Number()
-	c.w = r.Number()
+	c.x = r.Value()
+	c.y = r.Value()
+	c.r = r.Value()
+	c.w = r.Value()
 	const max = 1<<16 - 1
 	clr, err := r.ElementDefault(RGB16(max, max, max))
 	if err != nil {
@@ -249,46 +249,46 @@ func (c circle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return img, nil
 }
 
-type extend struct{ top, right, bottom, left pipeline.Number }
+type extend struct{ top, right, bottom, left pipeline.Value }
 
 func (extend) Name() string { return "extend" }
 func (extend) Inline() bool { return true }
 func (e extend) Encode(w pipeline.Writer) error {
 	if e.top == e.bottom && e.top == e.left && e.left == e.right {
-		w.Number(e.top)
+		w.Value(e.top)
 		return nil
 	}
 
 	if e.top == e.bottom && e.left == e.right {
-		w.Number(e.top)
-		w.Number(e.left)
+		w.Value(e.top)
+		w.Value(e.left)
 		return nil
 	}
 
-	w.Number(e.top)
-	w.Number(e.right)
-	w.Number(e.bottom)
-	w.Number(e.left)
+	w.Value(e.top)
+	w.Value(e.right)
+	w.Value(e.bottom)
+	w.Value(e.left)
 	return nil
 }
 
 func (e extend) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	switch r.Len() {
 	case 1:
-		e.top = r.Number()
+		e.top = r.Value()
 		e.bottom = e.top
 		e.left = e.top
 		e.right = e.top
 	case 2:
-		e.top = r.Number()
-		e.left = r.Number()
+		e.top = r.Value()
+		e.left = r.Value()
 		e.bottom = e.top
 		e.right = e.left
 	case 4:
-		e.top = r.Number()
-		e.right = r.Number()
-		e.bottom = r.Number()
-		e.left = r.Number()
+		e.top = r.Value()
+		e.right = r.Value()
+		e.bottom = r.Value()
+		e.left = r.Value()
 	default:
 		return e, fmt.Errorf("invalid amount of arguments to %s()", e.Name())
 	}

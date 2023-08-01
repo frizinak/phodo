@@ -24,50 +24,65 @@ func Text(x, y int, size float64, str string, clr Color, f Font) pipeline.Elemen
 		x:     pipeline.PlainNumber(x),
 		y:     pipeline.PlainNumber(y),
 		size:  pipeline.PlainNumber(size),
-		text:  str,
+		text:  pipeline.PlainString(str),
 		color: clr,
-		font:  f,
+		font:  pipeline.PlainString(f),
 	}
 }
 
-func TTFFont(name Font, d []byte) pipeline.Element     { return ttfFont{name: name, d: d} }
-func TTFFontFile(name Font, p string) pipeline.Element { return ttfFontFile{ttfFont{name: name}, p} }
+func TTFFont(name Font, d []byte) pipeline.Element {
+	return ttfFont{
+		name: pipeline.PlainString(name),
+		d:    d,
+	}
+}
+func TTFFontFile(name Font, p string) pipeline.Element {
+	return ttfFontFile{
+		ttfFont{name: pipeline.PlainString(name)},
+		pipeline.PlainString(p),
+	}
+}
 
 type ttfFont struct {
-	name Font
+	name pipeline.Value
 	d    []byte
 }
 
 func (t ttfFont) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	ctx.Mark(t)
 
+	name, err := t.name.String(img)
+	if err != nil {
+		return img, err
+	}
+
 	f, err := core.FontLoad(t.d)
 	if err != nil {
 		return img, err
 	}
 
-	ctx.Set(FontKey(t.name), f)
+	ctx.Set(FontKey(Font(name)), f)
 
 	return img, nil
 }
 
 type ttfFontFile struct {
 	ttfFont
-	path string
+	path pipeline.Value
 }
 
 func (ttfFontFile) Name() string { return "font-load-ttf" }
 func (ttfFontFile) Inline() bool { return true }
 
 func (t ttfFontFile) Encode(w pipeline.Writer) error {
-	w.String(string(t.name))
-	w.String(t.path)
+	w.Value(t.name)
+	w.Value(t.path)
 	return nil
 }
 
 func (t ttfFontFile) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	t.name = Font(r.String())
-	t.path = r.String()
+	t.name = r.Value()
+	t.path = r.Value()
 	return t, nil
 }
 
@@ -83,7 +98,12 @@ func (t ttfFontFile) Help() [][2]string {
 func (t ttfFontFile) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	ctx.Mark(t)
 
-	d, err := os.ReadFile(t.path)
+	path, err := t.path.String(img)
+	if err != nil {
+		return img, err
+	}
+
+	d, err := os.ReadFile(path)
 	if err != nil {
 		return img, err
 	}
@@ -96,30 +116,31 @@ func (t ttfFontFile) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error
 func FontKey(str Font) string { return fmt.Sprintf(":font:%s", str) }
 
 type text struct {
-	x, y  pipeline.Number
-	size  pipeline.Number
+	x, y  pipeline.Value
+	size  pipeline.Value
 	color Color
-	text  string
-	font  Font
+	text  pipeline.Value
+	font  pipeline.Value
 }
 
 func (text) Name() string { return "text" }
 func (text) Inline() bool { return true }
 
 func (t text) Encode(w pipeline.Writer) error {
-	w.Number(t.x)
-	w.Number(t.y)
-	w.Number(t.size)
-	w.String(t.text)
-	w.String(string(t.font))
-	return nil
+	w.Value(t.x)
+	w.Value(t.y)
+	w.Value(t.size)
+	w.Value(t.text)
+	err := w.Element(t.color)
+	w.Value(t.font)
+	return err
 }
 
 func (t text) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	t.x = r.Number()
-	t.y = r.Number()
-	t.size = r.Number()
-	t.text = r.String()
+	t.x = r.Value()
+	t.y = r.Value()
+	t.size = r.Value()
+	t.text = r.Value()
 	clr, err := r.ElementDefault(RGB16(0, 0, 0))
 	if err != nil {
 		return t, err
@@ -130,7 +151,7 @@ func (t text) Decode(r pipeline.Reader) (pipeline.Element, error) {
 		return t, fmt.Errorf("element of type '%T' is not a Color", clr)
 	}
 
-	t.font = Font(r.StringDefault(string(FontGo)))
+	t.font = r.ValueDefault(pipeline.PlainString(FontGo))
 
 	return t, nil
 }
@@ -167,21 +188,29 @@ func (t text) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	if err != nil {
 		return img, err
 	}
+	fn, err := t.font.String(img)
+	if err != nil {
+		return img, err
+	}
+	txt, err := t.text.String(img)
+	if err != nil {
+		return img, err
+	}
 
-	_font := ctx.Get(FontKey(t.font))
+	_font := ctx.Get(FontKey(Font(fn)))
 	if _font == nil {
-		if t.font != "" {
-			ctx.Warn(t, fmt.Sprintf("font not loaded: '%s'", t.font))
+		if fn != "" {
+			ctx.Warn(t, fmt.Sprintf("font not loaded: '%s'", fn))
 		}
 		_font = ctx.Get(FontKey(FontGo))
 	}
 
 	if _font == nil {
-		return img, fmt.Errorf("font not loaded: '%s'", t.font)
+		return img, fmt.Errorf("font not loaded: '%s'", fn)
 	}
 	fnt, ok := _font.(*sfnt.Font)
 	if !ok {
-		return img, fmt.Errorf("invalid font: '%s': %T", t.font, _font)
+		return img, fmt.Errorf("invalid font: '%s': %T", fn, _font)
 	}
 
 	clr := t.color.Color()
@@ -191,7 +220,7 @@ func (t text) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		image.NewUniform(color.NRGBA64{clr[0], clr[1], clr[2], 1<<16 - 1}),
 		x, y,
 		size,
-		t.text,
+		txt,
 		fnt,
 	)
 }

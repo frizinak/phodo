@@ -197,7 +197,9 @@ func imageDecode(r io.ReadSeeker, extHint string, tryDCRAW bool) (*img48.Img, er
 	}
 
 	img := ImageNormalize(_img)
-	img.Exif = exif
+	if exif != nil {
+		img.Exif = exif
+	}
 
 	return img, nil
 }

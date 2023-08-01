@@ -43,8 +43,8 @@ func (p PosTransparent) Help() [][2]string {
 }
 
 func (p PosTransparent) Encode(w pipeline.Writer) error {
-	w.Number(p.p.X)
-	w.Number(p.p.Y)
+	w.Value(p.p.X)
+	w.Value(p.p.Y)
 	if err := w.Element(p.clr); err != nil {
 		return err
 	}
@@ -53,8 +53,8 @@ func (p PosTransparent) Encode(w pipeline.Writer) error {
 }
 
 func (p PosTransparent) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	p.p.X = r.Number()
-	p.p.Y = r.Number()
+	p.p.X = r.Value()
+	p.p.Y = r.Value()
 
 	clr, err := r.Element()
 	if err != nil {
@@ -82,7 +82,7 @@ type Pos struct {
 }
 
 type Point struct {
-	X, Y pipeline.Number
+	X, Y pipeline.Value
 }
 
 func (p Point) Execute(img *img48.Img) (image.Point, error) {
@@ -112,14 +112,14 @@ func (p Pos) Help() [][2]string {
 }
 
 func (p Pos) Encode(w pipeline.Writer) error {
-	w.Number(p.p.X)
-	w.Number(p.p.Y)
+	w.Value(p.p.X)
+	w.Value(p.p.Y)
 	return w.Element(p.el)
 }
 
 func (p Pos) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	p.p.X = r.Number()
-	p.p.Y = r.Number()
+	p.p.X = r.Value()
+	p.p.Y = r.Value()
 	var err error
 	p.el, err = r.Element()
 	return p, err

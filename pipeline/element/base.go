@@ -42,19 +42,19 @@ func (c cpy) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return core.ImageCopyDiscard(img), nil
 }
 
-type canvas struct{ width, height pipeline.Number }
+type canvas struct{ width, height pipeline.Value }
 
 func (canvas) Name() string { return "new" }
 func (canvas) Inline() bool { return true }
 func (c canvas) Encode(w pipeline.Writer) error {
-	w.Number(c.width)
-	w.Number(c.height)
+	w.Value(c.width)
+	w.Value(c.height)
 	return nil
 }
 
 func (c canvas) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	c.width = r.Number()
-	c.height = r.Number()
+	c.width = r.Value()
+	c.height = r.Value()
 	return c, nil
 }
 
