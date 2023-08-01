@@ -71,6 +71,27 @@ func handleScript(c phodo.Conf, args []string) error {
 	return phodo.Script(context.Background(), c, args[0])
 }
 
+func handleFormat(c phodo.Conf, args []string) error {
+	if len(args) == 0 {
+		return errors.New("please provide a script file")
+	}
+	if err := parseAssignments(c, args[1:]); err != nil {
+		return err
+	}
+	root, err := phodo.LoadScript(c, args[0])
+	if err != nil {
+		return err
+	}
+
+	enc := pipeline.NewEncoder(os.Stdout, "    ")
+	err = enc.All(root.ListElements()...)
+	if err != nil {
+		return err
+	}
+
+	return enc.Flush()
+}
+
 func main() {
 	c := phodo.NewConf(os.Stderr, nil)
 
@@ -94,6 +115,7 @@ func main() {
 			fmt.Fprintln(w, "  edit")
 			fmt.Fprintln(w, "  script")
 			fmt.Fprintln(w, "  list")
+			fmt.Fprintln(w, "  format")
 		}
 	}).Handler(func(set *flags.Set, args []string) error {
 		set.Usage(1)
@@ -181,6 +203,22 @@ func main() {
 			return nil
 		})
 	}
+
+	fr.Add("format").Define(func(set *flag.FlagSet) func(io.Writer) {
+		flagScript(set)
+
+		return func(w io.Writer) {
+			fmt.Fprintln(w, "Decode and encode the given script and print on stdout")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "phodo format [flags] <input-file> [var1=value1 .. varN=valueN]")
+			fmt.Fprintln(w, "  [flags]")
+			set.PrintDefaults()
+			fmt.Fprintln(w, "  <input-file>  (required) Path to the image.")
+			fmt.Fprintln(w, "  [var1=value1] (optional) Assign values to script variables.")
+		}
+	}).Handler(func(set *flags.Set, args []string) error {
+		return handleFormat(c, args)
+	})
 
 	set, _ := fr.ParseCommandline()
 	if err := set.Do(); err != nil {
