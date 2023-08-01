@@ -8,10 +8,8 @@ import (
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
+	"github.com/frizinak/phodo/pipeline/element/core"
 	"golang.org/x/image/font/sfnt"
-	"golang.org/x/image/math/fixed"
 )
 
 type Font string
@@ -43,12 +41,7 @@ type ttfFont struct {
 func (t ttfFont) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	ctx.Mark(t)
 
-	col, err := opentype.ParseCollection(t.d)
-	if err != nil {
-		return img, err
-	}
-
-	f, err := col.Font(0)
+	f, err := core.FontLoad(t.d)
 	if err != nil {
 		return img, err
 	}
@@ -192,25 +185,13 @@ func (t text) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	}
 
 	clr := t.color.Color()
-	uni := image.NewUniform(color.NRGBA64{clr[0], clr[1], clr[2], 1<<16 - 1})
 
-	face, err := opentype.NewFace(fnt, &opentype.FaceOptions{
-		Size:    size,
-		DPI:     72,
-		Hinting: font.HintingNone,
-	})
-	if err != nil {
-		return img, err
-	}
-
-	d := font.Drawer{
-		Dst:  img,
-		Src:  uni,
-		Face: face,
-		Dot:  fixed.P(x, y),
-	}
-
-	d.DrawString(t.text)
-
-	return img, nil
+	return img, core.Text(
+		img,
+		image.NewUniform(color.NRGBA64{clr[0], clr[1], clr[2], 1<<16 - 1}),
+		x, y,
+		size,
+		t.text,
+		fnt,
+	)
 }

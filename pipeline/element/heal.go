@@ -2,9 +2,11 @@ package element
 
 import (
 	"fmt"
+	"image"
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
+	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
 func HealSpot(x1, y1, x2, y2, outerRadius, innerRadius int) pipeline.Element {
@@ -83,43 +85,19 @@ func (spot healSpot) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error
 	if err != nil {
 		return img, err
 	}
-	ir, err := spot.ir.Float64(img)
+	ir, err := spot.ir.Int(img)
 	if err != nil {
 		return img, err
 	}
 
-	for y := -r / 2; y < +r/2; y++ {
-		do_ := (y1 + y) * img.Stride
-		so_ := (y2 + y) * img.Stride
-		for x := -r / 2; x < +r/2; x++ {
-			do := do_ + (x1+x)*3
-			so := so_ + (x2+x)*3
-			if do < 0 || so < 0 {
-				continue
-			}
-			if do >= len(img.Pix) || so >= len(img.Pix) {
-				continue
-			}
-
-			dp := img.Pix[do : do+3 : do+3]
-			sp := img.Pix[so : so+3 : so+3]
-
-			ir2 := ir * ir
-			g := 4 * (float64(x*x+y*y) - (ir2)/4) / (float64(r*r) - ir2)
-			if g > 1 {
-				g = 1
-			}
-			if g < 0 {
-				g = 0
-			}
-			dist := uint32((1<<16 - 1) * g)
-			idist := (1<<16 - 1) - dist
-
-			dp[0] = uint16((idist*uint32(sp[0]) + dist*uint32(dp[0])) >> 16)
-			dp[1] = uint16((idist*uint32(sp[1]) + dist*uint32(dp[1])) >> 16)
-			dp[2] = uint16((idist*uint32(sp[2]) + dist*uint32(dp[2])) >> 16)
-		}
-	}
+	core.DrawCircleSrc(
+		img,
+		img,
+		image.Point{x2, y2},
+		image.Point{x1, y1},
+		r,
+		ir,
+	)
 
 	return img, nil
 }

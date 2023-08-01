@@ -208,7 +208,7 @@ func (c compose) do(p Positionable, src, dst *img48.Img) error {
 	if err != nil {
 		return err
 	}
-	core.Draw(pnt, src, dst, t)
+	core.Draw(src, dst, pnt, t)
 	return nil
 }
 

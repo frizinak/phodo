@@ -10,7 +10,7 @@ type Color interface {
 	Color() [3]uint16
 }
 
-func Draw(p image.Point, src, dst *img48.Img, trans func(r, g, b uint16) bool) {
+func Draw(src, dst *img48.Img, p image.Point, trans func(r, g, b uint16) bool) {
 	sr := src.Rect
 	if d := sr.Dx() - dst.Rect.Dx() + p.X; d > 0 {
 		sr.Max.X -= d
@@ -37,7 +37,7 @@ func Draw(p image.Point, src, dst *img48.Img, trans func(r, g, b uint16) bool) {
 	}
 }
 
-func DrawRectangle(rect image.Rectangle, width int, src Color, dst *img48.Img) {
+func DrawRectangle(src Color, dst *img48.Img, rect image.Rectangle, width int) {
 	_clr := src.Color()
 	clr := _clr[:]
 	ll := func(x, y int) {
@@ -63,10 +63,127 @@ func DrawRectangle(rect image.Rectangle, width int, src Color, dst *img48.Img) {
 	}
 }
 
-func DrawFilledCircle(p image.Point, radius int, src Color, dst *img48.Img) {
-	_clr := src.Color()
-	clr := _clr[:]
-	o := func(x1, x2, y int) {
+func DrawHorizontalLine(src Color, dst *img48.Img, x1, x2, y int) {
+	linehorizdrawer(src, dst)(x1, x2, y)
+}
+
+func DrawFilledCircle(src Color, dst *img48.Img, p image.Point, radius int) {
+	o := linehorizdrawer(src, dst)
+
+	cx, cy := p.X, p.Y
+	x := radius
+	y := 0
+	e := 0
+
+	for x >= y {
+		o(cx-x, cx+x, cy+y)
+		o(cx-x, cx+x, cy-y)
+		o(cx-y, cx+y, cy+x)
+		o(cx-y, cx+y, cy-x)
+		if e <= 0 {
+			y += 1
+			e += 2*y + 1
+		}
+
+		if e > 0 {
+			x -= 1
+			e -= 2*x + 1
+		}
+	}
+}
+
+func DrawCircleBorder(src Color, dst *img48.Img, p image.Point, radius, border int) {
+	if border >= radius {
+		DrawFilledCircle(src, dst, p, radius)
+		return
+	}
+
+	for n := radius - border; n <= radius; n++ {
+		DrawCircle(src, dst, p, n)
+	}
+}
+
+func DrawCircle(src Color, dst *img48.Img, p image.Point, radius int) {
+	o := pointdrawer(src, dst)
+
+	cx, cy := p.X, p.Y
+	x := radius
+	y := 0
+	e := 0
+
+	for x >= y {
+		o(cx+x, cy+y)
+		o(cx+y, cy+x)
+		o(cx-y, cy+x)
+		o(cx-x, cy+y)
+		o(cx-x, cy-y)
+		o(cx-y, cy-x)
+		o(cx+y, cy-x)
+		o(cx+x, cy-y)
+
+		if e <= 0 {
+			y += 1
+			e += 2*y + 1
+		}
+
+		if e > 0 {
+			x -= 1
+			e -= 2*x + 1
+		}
+	}
+}
+
+func DrawCircleSrc(src, dst *img48.Img, sp, dp image.Point, outerRadius, innerRadius int) {
+	// Note: Already tried optimizing using only integer arithmetic.
+	//       (both int and uint32). Causes an almost 2x slowdown.
+
+	s := 1.0
+	if innerRadius < 0 {
+		s = -1.0
+	}
+	or2 := float64(outerRadius * outerRadius)
+	ir2 := float64(innerRadius * innerRadius)
+	d := 1.0 / (or2 - s*ir2)
+	o := s * ir2 / 4
+
+	for y := -outerRadius / 2; y < +outerRadius/2; y++ {
+		do_ := (dp.Y + y) * dst.Stride
+		so_ := (sp.Y + y) * src.Stride
+		for x := -outerRadius / 2; x < +outerRadius/2; x++ {
+			do := do_ + (dp.X+x)*3
+			so := so_ + (sp.X+x)*3
+			if do < 0 || so < 0 {
+				continue
+			}
+			if do >= len(dst.Pix) || so >= len(src.Pix) {
+				continue
+			}
+
+			dpix := dst.Pix[do : do+3 : do+3]
+			spix := src.Pix[so : so+3 : so+3]
+
+			g := 4 * (float64(x*x+y*y) - o) * d
+			if g > 1 {
+				g = 1
+			}
+			if g < 0 {
+				g = 0
+			}
+
+			// Note: And this is faster than converting the pixels to floats.
+			//       *shrug*
+			dist := uint32((1<<16 - 1) * g)
+			idist := (1<<16 - 1) - dist
+
+			dpix[0] = uint16((idist*uint32(spix[0]) + dist*uint32(dpix[0])) >> 16)
+			dpix[1] = uint16((idist*uint32(spix[1]) + dist*uint32(dpix[1])) >> 16)
+			dpix[2] = uint16((idist*uint32(spix[2]) + dist*uint32(dpix[2])) >> 16)
+		}
+	}
+}
+
+func linehorizcb(dst *img48.Img, cb func(y int, pix []uint16)) func(x1, x2, y int) {
+	return func(x1, x2, y int) {
 		if y >= dst.Rect.Max.Y {
 			y = dst.Rect.Max.Y - 1
 		}
@@ -96,49 +213,25 @@ func DrawFilledCircle(p image.Point, radius int, src Color, dst *img48.Img) {
 		if o2 >= len(dst.Pix) {
 			return
 		}
-		pix := dst.Pix[o1 : o2+3 : o2+3]
+		cb(y, dst.Pix[o1:o2+3:o2+3])
+	}
+}
+
+func linehorizdrawer(src Color, dst *img48.Img) func(x1, x2, y int) {
+	_clr := src.Color()
+	clr := _clr[:]
+	cb := linehorizcb(dst, func(y int, pix []uint16) {
 		for n := 0; n < len(pix); n += 3 {
 			copy(pix[n:n+3:n+3], clr)
 		}
-	}
-
-	cx, cy := p.X, p.Y
-	x := radius
-	y := 0
-	e := 0
-
-	for x >= y {
-		o(cx-x, cx+x, cy+y)
-		o(cx-x, cx+x, cy-y)
-		o(cx-y, cx+y, cy+x)
-		o(cx-y, cx+y, cy-x)
-		if e <= 0 {
-			y += 1
-			e += 2*y + 1
-		}
-
-		if e > 0 {
-			x -= 1
-			e -= 2*x + 1
-		}
-	}
+	})
+	return cb
 }
 
-func DrawCircleBorder(p image.Point, radius, border int, src Color, dst *img48.Img) {
-	if border >= radius {
-		DrawFilledCircle(p, radius, src, dst)
-		return
-	}
-
-	for n := radius - border; n <= radius; n++ {
-		DrawCircle(p, n, src, dst)
-	}
-}
-
-func DrawCircle(p image.Point, radius int, src Color, dst *img48.Img) {
+func pointdrawer(src Color, dst *img48.Img) func(x, y int) {
 	_clr := src.Color()
 	clr := _clr[:]
-	o := func(x, y int) {
+	return func(x, y int) {
 		if y >= dst.Rect.Max.Y {
 			y = dst.Rect.Max.Y - 1
 		}
@@ -161,31 +254,5 @@ func DrawCircle(p image.Point, radius int, src Color, dst *img48.Img) {
 			return
 		}
 		copy(dst.Pix[o:o+3:o+3], clr)
-	}
-
-	cx, cy := p.X, p.Y
-	x := radius
-	y := 0
-	e := 0
-
-	for x >= y {
-		o(cx+x, cy+y)
-		o(cx+y, cy+x)
-		o(cx-y, cy+x)
-		o(cx-x, cy+y)
-		o(cx-x, cy-y)
-		o(cx-y, cy-x)
-		o(cx+y, cy-x)
-		o(cx+x, cy-y)
-
-		if e <= 0 {
-			y += 1
-			e += 2*y + 1
-		}
-
-		if e > 0 {
-			x -= 1
-			e -= 2*x + 1
-		}
 	}
 }

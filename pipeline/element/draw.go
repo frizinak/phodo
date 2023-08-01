@@ -169,7 +169,7 @@ func (r rectangle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) 
 		return img, err
 	}
 
-	core.DrawRectangle(image.Rect(x, y, x+w, y+h), b, r.clr, img)
+	core.DrawRectangle(r.clr, img, image.Rect(x, y, x+w, y+h), b)
 
 	return img, nil
 }
@@ -244,7 +244,7 @@ func (c circle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, err
 	}
 
-	core.DrawCircleBorder(image.Point{x, y}, r, w, c.clr, img)
+	core.DrawCircleBorder(c.clr, img, image.Point{x, y}, r, w)
 
 	return img, nil
 }
@@ -346,7 +346,7 @@ func (e extend) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	dst := img48.New(r)
 	dst.Exif = img.Exif.Clone()
 
-	core.Draw(p, img, dst, nil)
+	core.Draw(img, dst, p, nil)
 
 	return dst, nil
 }
