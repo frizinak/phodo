@@ -240,6 +240,12 @@ func Editor(ctx context.Context, c Conf, file string) error {
 		}
 	}
 
+	s := time.Now()
+	_, err = load.Do(rctx, nil)
+	if err != nil {
+		return err
+	}
+
 	{
 		s, err := os.Stat(c.Script)
 		if os.IsNotExist(err) {
@@ -293,7 +299,6 @@ outer:
 		default:
 		}
 
-		s := time.Now()
 		f, err := os.Open(c.Script)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -347,6 +352,7 @@ outer:
 		img = core.ImageDiscard(out)
 		v.Set(img)
 		fmt.Fprintf(c.out, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", time.Since(s).Round(time.Millisecond))
+		s = time.Now()
 
 		if fullRefreshing {
 			fmt.Fprintf(c.out, "\033[48;5;66m\033[38;5;195m%79s \033[0m\n", "Refresh")
