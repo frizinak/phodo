@@ -145,26 +145,3 @@ func Black(img *img48.Img, n float64) {
 
 	LUT16(img, l)
 }
-
-func add(v uint16, a int) uint16 {
-	r := int(v) + a
-	if r > 1<<16-1 {
-		r = 1<<16 - 1
-	} else if r < 0 {
-		r = 0
-	}
-	return uint16(r)
-}
-
-func mul(v uint16, a float64) uint16 {
-	return capFloat(float64(v) * a)
-}
-
-func capFloat(r float64) uint16 {
-	if r > 1<<16-1 {
-		r = 1<<16 - 1
-	} else if r < 0 {
-		r = 0
-	}
-	return uint16(r)
-}
