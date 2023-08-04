@@ -123,11 +123,11 @@ func TestNonZeroAreaImage(t *testing.T) {
 
 func TestCroppedImage(t *testing.T) {
 	ex := ex.New()
-	r := image.Rect(0, 0, 1024, 1024)
+	// r := image.Rect(0, 0, 1024, 1024)
 	c := image.Rect(100, 100, 500, 500)
 	n := func() *img48.Img {
-		//return img48.New(c, ex)
-		return img48.New(r, ex).SubImage(c).(*img48.Img)
+		return img48.New(c, ex)
+		//return img48.New(r, ex).SubImage(c).(*img48.Img)
 	}
 	testAll(t, n, func(err error) {
 		panic(err)

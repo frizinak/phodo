@@ -41,7 +41,7 @@ func DrawRectangle(src Color, dst *img48.Img, rect image.Rectangle, width int) {
 	_clr := src.Color()
 	clr := _clr[:]
 	ll := func(x, y int) {
-		if x >= 0 && y >= 0 && x < dst.Rect.Max.X && y < dst.Rect.Max.Y {
+		if x >= dst.Rect.Min.X && y >= dst.Rect.Min.Y && x < dst.Rect.Max.X && y < dst.Rect.Max.Y {
 			o := y*dst.Stride + x*3
 			pix := dst.Pix[o : o+3 : o+3]
 			copy(pix, clr)
