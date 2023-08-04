@@ -26,14 +26,7 @@ func Contrast(img *img48.Img, n float64) {
 		}
 	case 1 < v && v < 2:
 		for i := 0; i < 1<<16; i++ {
-			x := (half + (i-half)*div/mul)
-			if x > 1<<16-1 {
-				x = 1<<16 - 1
-			}
-			if x < 0 {
-				x = 0
-			}
-			l[i] = uint16(x)
+			l[i] = intClampUint16(half + (i-half)*div/mul)
 		}
 	default:
 		for i := half; i < 1<<16; i++ {
@@ -48,14 +41,7 @@ func Brightness(img *img48.Img, n float64) {
 	l := make([]uint16, 1<<16)
 	shift := int((1<<16 - 1) * n)
 	for i := 0; i < 1<<16; i++ {
-		f := i + shift
-		if f > 1<<16-1 {
-			f = 1<<16 - 1
-		}
-		if f < 0 {
-			f = 0
-		}
-		l[i] = uint16(f)
+		l[i] = intClampUint16(i + shift)
 	}
 
 	LUT16(img, l)
@@ -107,13 +93,7 @@ func RGBAdd(img *img48.Img, r, g, b int) {
 func Saturation(img *img48.Img, n float64) {
 	factor := int(n * (1<<16 - 1))
 	c := func(v uint16, avg int) uint16 {
-		r := avg + (int(v)-avg)*factor/(1<<16-1)
-		if r < 0 {
-			return 0
-		} else if r > 1<<16-1 {
-			return 1<<16 - 1
-		}
-		return uint16(r)
+		return intClampUint16(avg + (int(v)-avg)*factor/(1<<16-1))
 	}
 
 	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {

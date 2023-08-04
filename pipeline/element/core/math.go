@@ -1,20 +1,13 @@
 package core
 
-func add(v uint16, a int) uint16 {
-	r := int(v) + a
-	if r > 1<<16-1 {
-		r = 1<<16 - 1
-	} else if r < 0 {
-		r = 0
-	}
-	return uint16(r)
-}
+import (
+	"math"
+)
 
-func mul(v uint16, a float64) uint16 {
-	return capFloat(float64(v) * a)
-}
+func add(v uint16, a int) uint16     { return intClampUint16(int(v) + a) }
+func mul(v uint16, a float64) uint16 { return floatClampUint16(float64(v) * a) }
 
-func capFloat(r float64) uint16 {
+func floatClampUint16(r float64) uint16 {
 	if r > 1<<16-1 {
 		r = 1<<16 - 1
 	} else if r < 0 {
@@ -64,4 +57,9 @@ func partition(nums []int, left, right int) int {
 
 	nums[i], nums[right] = nums[right], nums[i]
 	return i
+}
+
+func gaussian(x, y, sigma float64) int {
+	weight := (1.0 / (2.0 * math.Pi * sigma * sigma)) * math.Exp(-(x*x+y*y)/(2.0*sigma*sigma))
+	return int(weight * (1<<16 - 1))
 }

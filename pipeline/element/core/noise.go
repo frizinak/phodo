@@ -2,16 +2,10 @@ package core
 
 import (
 	"image"
-	"math"
 	"sync"
 
 	"github.com/frizinak/phodo/img48"
 )
-
-func gaussian(x, y, sigma float64) int {
-	weight := (1.0 / (2.0 * math.Pi * sigma * sigma)) * math.Exp(-(x*x+y*y)/(2.0*sigma*sigma))
-	return int(weight * (1<<16 - 1))
-}
 
 func generateGaussianKernel(size int, sigma float64) [][]int {
 	kernel := make([][]int, size)

@@ -146,16 +146,15 @@ func DrawCircleSrc(src, dst *img48.Img, sp, dp image.Point, outerRadius, innerRa
 	d := 1.0 / (or2 - s*ir2)
 	o := s * ir2 / 4
 
+	sl, dl := len(src.Pix), len(dst.Pix)
+
 	for y := -outerRadius / 2; y < +outerRadius/2; y++ {
 		do_ := (dp.Y + y) * dst.Stride
 		so_ := (sp.Y + y) * src.Stride
 		for x := -outerRadius / 2; x < +outerRadius/2; x++ {
 			do := do_ + (dp.X+x)*3
 			so := so_ + (sp.X+x)*3
-			if do < 0 || so < 0 {
-				continue
-			}
-			if do >= len(dst.Pix) || so >= len(src.Pix) {
+			if do < 0 || so < 0 || do >= dl || so >= sl {
 				continue
 			}
 
