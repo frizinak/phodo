@@ -210,9 +210,9 @@ func (hist HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Im
 	width *= uint32(barWidth)
 	height := uint32(h)
 
-	img = img48.New(
-		image.Rect(0, 0, int(width), int(height)),
-	)
+	var r image.Rectangle
+	r.Max.X, r.Max.Y = int(width), int(height)
+	img = img48.New(r, nil)
 
 	wht := []uint16{
 		1<<16 - 1,

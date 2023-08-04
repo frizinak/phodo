@@ -8,6 +8,7 @@ import (
 	"io"
 	"testing"
 
+	ex "github.com/frizinak/phodo/exif"
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
 	"github.com/frizinak/phodo/pipeline/element/core"
@@ -99,8 +100,10 @@ var jpeg64x64 = []byte{
 }
 
 func TestZeroAreaImage(t *testing.T) {
+	ex := ex.New()
+	r := image.Rect(0, 0, 0, 0)
 	n := func() *img48.Img {
-		return img48.New(image.Rect(0, 0, 0, 0))
+		return img48.New(r, ex)
 	}
 	testAll(t, n, func(err error) {
 		panic(err)
@@ -108,8 +111,10 @@ func TestZeroAreaImage(t *testing.T) {
 }
 
 func TestNonZeroAreaImage(t *testing.T) {
+	ex := ex.New()
+	r := image.Rect(0, 0, 1024, 1024)
 	n := func() *img48.Img {
-		return img48.New(image.Rect(0, 0, 1024, 1024))
+		return img48.New(r, ex)
 	}
 	testAll(t, n, func(err error) {
 		panic(err)
@@ -117,9 +122,12 @@ func TestNonZeroAreaImage(t *testing.T) {
 }
 
 func TestCroppedImage(t *testing.T) {
+	ex := ex.New()
+	r := image.Rect(0, 0, 1024, 1024)
+	c := image.Rect(100, 100, 500, 500)
 	n := func() *img48.Img {
-		return img48.New(image.Rect(0, 0, 1024, 1024)).
-			SubImage(image.Rect(100, 100, 500, 500)).(*img48.Img)
+		//return img48.New(c, ex)
+		return img48.New(r, ex).SubImage(c).(*img48.Img)
 	}
 	testAll(t, n, func(err error) {
 		panic(err)

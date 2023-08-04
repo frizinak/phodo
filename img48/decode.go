@@ -47,7 +47,9 @@ func Decode48(r io.Reader) (*Img, error) {
 		return nil, err
 	}
 
-	img := New(image.Rect(0, 0, w, h))
+	var rct image.Rectangle
+	rct.Max.X, rct.Max.Y = w, h
+	img := New(rct, nil)
 	b := make([]byte, 6*w)
 	o := 0
 	for {
@@ -68,7 +70,10 @@ func Decode48(r io.Reader) (*Img, error) {
 	}
 
 	if exifHeader[0] != 0 {
-		img.Exif, err = exif.ReadMemory(r, exifHeader)
+		ex, err := exif.ReadMemory(r, exifHeader)
+		if err == nil {
+			img.Exif = ex
+		}
 	}
 
 	return img, err

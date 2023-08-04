@@ -80,7 +80,9 @@ func (c canvas) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, err
 	}
 
-	return img48.New(image.Rect(0, 0, w, h)), nil
+	var r image.Rectangle
+	r.Max.X, r.Max.Y = w, h
+	return img48.New(r, nil), nil
 }
 
 type imgStatic struct {

@@ -79,7 +79,7 @@ func DenoiseLuminanceMedian(img *img48.Img, readRadius, writeRadius int, blend b
 				yy := median(yyl)
 
 				if blend {
-					cv := img48.NewWithExif(orect, img.Exif)
+					cv := img48.New(orect, img.Exif)
 					for ny := 0; ny < writeDim; ny++ {
 						o_ := ny * cv.Stride
 						ro_ := (y + ny) * img.Stride
@@ -170,7 +170,7 @@ func DenoiseChromaMedian(img *img48.Img, readRadius, writeRadius int, blend bool
 				b := 116130 * cb
 
 				if blend {
-					cv := img48.NewWithExif(orect, img.Exif)
+					cv := img48.New(orect, img.Exif)
 					for ny := 0; ny < writeDim; ny++ {
 						o_ := ny * cv.Stride
 						ro_ := (y + ny) * img.Stride

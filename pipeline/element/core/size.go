@@ -109,7 +109,7 @@ func cresize(src *img48.Img, dstb image.Rectangle, kernel draw.Kernel) *img48.Im
 		return src
 	}
 	if dw <= 0 || sw <= 0 {
-		return img48.New(image.Rect(0, 0, 0, 0))
+		return img48.New(image.Rect(0, 0, 0, 0), src.Exif)
 	}
 
 	maxw := dw
@@ -123,8 +123,9 @@ func cresize(src *img48.Img, dstb image.Rectangle, kernel draw.Kernel) *img48.Im
 
 	dst := src
 	if maxw >= sw && maxh >= sh {
-		dst = img48.New(image.Rect(0, 0, maxw, maxh))
-		dst.Exif = src.Exif
+		var r image.Rectangle
+		r.Max.X, r.Max.Y = maxw, maxh
+		dst = img48.New(r, src.Exif)
 	}
 
 	clone := false
@@ -136,7 +137,9 @@ func cresize(src *img48.Img, dstb image.Rectangle, kernel draw.Kernel) *img48.Im
 	_ = clone
 	if sh != dh {
 		if clone {
-			src = ImageCopyDiscard(dst.SubImage(image.Rect(0, 0, dw, maxh)).(*img48.Img))
+			var r image.Rectangle
+			r.Max.X, r.Max.Y = dw, maxh
+			src = ImageCopyDiscard(dst.SubImage(r).(*img48.Img))
 		}
 		hresize(src, dst, sh, dh, kernel)
 	}

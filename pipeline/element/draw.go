@@ -332,10 +332,10 @@ func (e extend) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	}
 
 	w, h := img.Rect.Dx(), img.Rect.Dy()
-	r := image.Rect(0, 0, w+left+right, h+top+bottom)
+	var r image.Rectangle
+	r.Max.X, r.Max.Y = w+left+right, h+top+bottom
 	p := image.Point{left, top}
-	dst := img48.New(r)
-	dst.Exif = img.Exif.Clone()
+	dst := img48.New(r, img.Exif)
 
 	core.Draw(img, dst, p, nil)
 

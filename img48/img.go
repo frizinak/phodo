@@ -108,34 +108,33 @@ func (img *Img) YCbCrBlock8(x, y int, Y, Cb, Cr *jpeg.Block) {
 	}
 }
 
-func New(b image.Rectangle) *Img {
-	return NewWithExif(b, nil)
+func New(r image.Rectangle, ex *exif.Exif) *Img {
+	return mk(r, make([]uint16, 3*r.Dx()*r.Dy()), ex)
 }
 
-func NewWithExif(b image.Rectangle, ex *exif.Exif) *Img {
+func mk(r image.Rectangle, b []uint16, ex *exif.Exif) *Img {
 	if ex == nil {
 		ex = exif.New()
 	}
-	return &Img{
-		Exif:   ex,
-		Pix:    make([]uint16, 3*b.Dx()*b.Dy()),
-		Stride: 3 * b.Dx(),
-		Rect:   b,
-	}
+
+	return &Img{Exif: ex, Pix: b, Stride: 3 * r.Dx(), Rect: r}
 }
 
-func NewFromSlice(slice interface{}, width, height int) (*Img, error) {
+func NewFromSlice(slice interface{}, width, height int, ex *exif.Exif) (*Img, error) {
 	switch b := slice.(type) {
 	case []uint8:
-		return NewFrom8(b, width, height)
+		return NewFrom8(b, width, height, ex)
 	case []uint16:
-		return NewFrom16(b, width, height)
+		return NewFrom16(b, width, height, ex)
 	}
 
 	return nil, errors.New("unsupported slice type")
 }
 
-func NewFrom8(buf []uint8, width, height int) (*Img, error) {
+func NewFrom8(buf []uint8, width, height int, ex *exif.Exif) (*Img, error) {
+	var r image.Rectangle
+	r.Max.X, r.Max.Y = width, height
+
 	samples := len(buf) / (width * height)
 	switch samples {
 	case 3:
@@ -143,12 +142,7 @@ func NewFrom8(buf []uint8, width, height int) (*Img, error) {
 		for n, v := range buf {
 			nb[n] = uint16(v) << 8
 		}
-		return &Img{
-			Exif:   exif.New(),
-			Stride: 3 * width,
-			Rect:   image.Rect(0, 0, width, height),
-			Pix:    nb,
-		}, nil
+		return mk(r, nb, ex), nil
 	case 4:
 		nb := make([]uint16, len(buf)/4*3)
 		for n := 0; n < len(buf); n += 4 {
@@ -160,27 +154,20 @@ func NewFrom8(buf []uint8, width, height int) (*Img, error) {
 			nb[i+1] = uint16(buf[n+1]) << 8
 			nb[i+2] = uint16(buf[n+2]) << 8
 		}
-		return &Img{
-			Exif:   exif.New(),
-			Stride: 3 * width,
-			Rect:   image.Rect(0, 0, width, height),
-			Pix:    nb,
-		}, nil
+		return mk(r, nb, ex), nil
 	}
 
 	return nil, errors.New("invalid slice length / amount of channels")
 }
 
-func NewFrom16(buf []uint16, width, height int) (*Img, error) {
+func NewFrom16(buf []uint16, width, height int, ex *exif.Exif) (*Img, error) {
+	var r image.Rectangle
+	r.Max.X, r.Max.Y = width, height
+
 	samples := len(buf) / (width * height)
 	switch samples {
 	case 3:
-		return &Img{
-			Exif:   exif.New(),
-			Stride: 3 * width,
-			Rect:   image.Rect(0, 0, width, height),
-			Pix:    buf,
-		}, nil
+		return mk(r, buf, ex), nil
 	case 4:
 		nb := make([]uint16, len(buf)/4*3)
 		for n := 0; n < len(buf); n += 4 {
@@ -191,12 +178,7 @@ func NewFrom16(buf []uint16, width, height int) (*Img, error) {
 
 			copy(nb[i:i+3:i+3], buf[n:n+3:n+3])
 		}
-		return &Img{
-			Exif:   exif.New(),
-			Stride: 3 * width,
-			Rect:   image.Rect(0, 0, width, height),
-			Pix:    nb,
-		}, nil
+		return mk(r, nb, ex), nil
 	}
 
 	return nil, errors.New("invalid slice length / amount of channels")
@@ -207,7 +189,7 @@ func Normalize(i image.Image) *Img {
 		return img
 	}
 
-	img := New(i.Bounds())
+	img := New(i.Bounds(), nil)
 
 	// Fast path
 	switch v := i.(type) {
