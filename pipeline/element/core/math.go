@@ -26,39 +26,6 @@ func intClampUint16(n int) uint16 {
 	return uint16(n)
 }
 
-func median(nums []int) int {
-	n := len(nums)
-	targetIndex := n / 2
-	left, right := 0, n-1
-	for left < right {
-		pivotIndex := partition(nums, left, right)
-		if pivotIndex == targetIndex {
-			return nums[pivotIndex]
-		} else if pivotIndex < targetIndex {
-			left = pivotIndex + 1
-		} else {
-			right = pivotIndex - 1
-		}
-	}
-
-	return nums[left]
-}
-
-func partition(nums []int, left, right int) int {
-	pivot := nums[right]
-	i := left
-
-	for j := left; j < right; j++ {
-		if nums[j] < pivot {
-			nums[i], nums[j] = nums[j], nums[i]
-			i++
-		}
-	}
-
-	nums[i], nums[right] = nums[right], nums[i]
-	return i
-}
-
 func gaussian(x, y, sigma float64) int {
 	weight := (1.0 / (2.0 * math.Pi * sigma * sigma)) * math.Exp(-(x*x+y*y)/(2.0*sigma*sigma))
 	return int(weight * (1<<16 - 1))

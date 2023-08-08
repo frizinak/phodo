@@ -74,12 +74,16 @@ func (dn denoise) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, errors.New("denoise radius cannot be less than 0")
 	}
 
-	blend := radius > 2
-	if dn.chroma {
-		core.DenoiseChromaMedian(img, radius, radius, blend)
-		return img, nil
+	// blend := radius > 2
+	// if dn.chroma {
+	// 	core.DenoiseChromaMedian(img, radius, radius, blend)
+	// 	return img, nil
+	// }
+	// core.DenoiseLuminanceMedian(img, radius, radius, blend)
+
+	if err := core.CL(img, radius); err != nil {
+		return img, err
 	}
-	core.DenoiseLuminanceMedian(img, radius, radius, blend)
 
 	return img, nil
 }

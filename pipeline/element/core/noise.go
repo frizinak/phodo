@@ -1,10 +1,14 @@
 package core
 
 import (
+	"errors"
+	"fmt"
 	"image"
 	"sync"
 
+	"github.com/frizinak/go-opencl/cl"
 	"github.com/frizinak/phodo/img48"
+	"github.com/frizinak/phodo/median"
 )
 
 func generateGaussianKernel(size int, sigma float64) [][]int {
@@ -70,7 +74,7 @@ func DenoiseLuminanceMedian(img *img48.Img, readRadius, writeRadius int, blend b
 					}
 				}
 
-				yy := median(yyl)
+				yy := median.Median(yyl)
 
 				if blend {
 					cv := img48.New(orect, img.Exif)
@@ -137,11 +141,13 @@ func DenoiseChromaMedian(img *img48.Img, readRadius, writeRadius int, blend bool
 	_cbl := make([]int, height*region)
 	_crl := make([]int, height*region)
 	var wg sync.WaitGroup
+
 	for y := 0; y < height; y += writeRadius {
 		wg.Add(1)
 		go func(y int) {
 			for x := 0; x < width; x += writeRadius {
-				s, e := y*region, (y+1)*region
+				s := y * region
+				e := s + region
 				cbl := _cbl[s:s:e]
 				crl := _crl[s:s:e]
 				for j := y - readRadius; j <= y+readRadius && j < height; j++ {
@@ -157,8 +163,8 @@ func DenoiseChromaMedian(img *img48.Img, readRadius, writeRadius int, blend bool
 					}
 				}
 
-				cb := median(cbl)
-				cr := median(crl)
+				cb := median.Median(cbl)
+				cr := median.Median(crl)
 				r := 91881 * cr
 				g := -22554*cb - 46802*cr
 				b := 116130 * cb
@@ -209,6 +215,222 @@ func DenoiseChromaMedian(img *img48.Img, readRadius, writeRadius int, blend bool
 	}
 
 	wg.Wait()
+}
+
+func CL(img *img48.Img, radius int) error {
+	if len(img.Pix) == 0 {
+		return nil
+	}
+
+	var kernelSource = `
+int partition(long nums[FILTER_SIZE], const int count, const int left, const int right) {
+	int pivot = nums[right];
+	int i = left;
+	for (int j = left; j < right; j++) {
+		if (nums[j] < pivot) {
+			long tmp = nums[j];
+			nums[j] = nums[i];
+			nums[i] = tmp;
+			i++;
+		}
+	}
+
+	long tmp = nums[i];
+	nums[i] = nums[right];
+	nums[right] = tmp;
+	return i;
+}
+
+long median(long nums[FILTER_SIZE], const int count) {
+	int targetIndex = count / 2;
+	int left = 0;
+	int right = count - 1;
+	int pivIndex;
+	for (;left < right;) {
+		pivIndex = partition(nums, count, left, right);
+		if (pivIndex == targetIndex) {
+			return nums[pivIndex];
+		} else if (pivIndex < targetIndex) {
+			left = pivIndex + 1;
+		} else {
+			right = pivIndex - 1;
+		}
+	}
+
+	return nums[left];
+}
+
+ushort clamp(long n) {
+	if (n > (1<<16)-1) {
+		return (1<<16)-1;
+	}
+	if (n < 0) {
+		return 0;
+	}
+	return n;
+}
+
+__kernel void medianFilter(__global const ushort* pix,
+                           __global ushort* out,
+                           const int stride,
+                           const int minX,
+                           const int minY,
+                           const int maxX,
+                           const int maxY,
+                           const int radius) {
+
+    int2 gid = (int2)(get_global_id(0), get_global_id(1));
+	long cbl[FILTER_SIZE];
+	long crl[FILTER_SIZE];
+
+	if (gid.x >= maxX || gid.y >= maxY) {
+		return;
+	}
+
+	int count = 0;
+	long yy = 0;
+	for (int y = -radius; y <= radius; y++) {
+		int ny = gid.y + y;
+		if (ny < minY || ny >= maxY) {
+			continue;
+		}
+
+		int o_ = ny * stride;
+		for (int x = -radius; x <= radius; x++) {
+			int nx = gid.x + x;
+			if (nx < minX || nx >= maxX) {
+				continue;
+			}
+			int o = o_ + nx * 3;
+
+			long r = pix[o+0];
+			long g = pix[o+1];
+			long b = pix[o+2];
+			if (x == 0 && y == 0) {
+				yy = 19595*r + 38470*g + 7471*b;
+			}
+
+			cbl[count] = (-11056*r - 21712*g + 32768*b) >> 16;
+			crl[count] = (32768*r - 27440*g - 5328*b) >> 16;
+
+			count++;
+			if (count > FILTER_SIZE) {
+				printf("count: %d > %d\n", count, FILTER_SIZE);
+			}
+		}
+	}
+
+	long cr = median(crl, count);
+	long cb = median(cbl, count);
+
+	int ix = gid.y * stride + gid.x * 3;
+
+	// printf("median1: %d, median2: %d\n", values[count / 2], med);
+
+	out[ix+0] = clamp((yy + 91881*cr) >> 16);
+	out[ix+1] = clamp((yy - 22554*cb - 46802*cr) >> 16);
+	out[ix+2] = clamp((yy + 116130*cb) >> 16);
+}
+`
+
+	n := 2*radius + 1
+	kernelSource = fmt.Sprintf("#define FILTER_SIZE %d\n%s", n*n, kernelSource)
+
+	platforms, err := cl.GetPlatforms()
+	if err != nil {
+		return err
+	}
+
+	var dev *cl.Device
+	for _, p := range platforms {
+		devices, err := p.GetDevices(cl.DeviceTypeGPU)
+		if err != nil {
+			return err
+		}
+		if len(devices) != 0 {
+			dev = devices[0]
+			break
+		}
+	}
+	if dev == nil {
+		return errors.New("no gpu found")
+	}
+	context, err := cl.CreateContext([]*cl.Device{dev})
+	if err != nil {
+		return err
+	}
+	queue, err := context.CreateCommandQueue(dev, 0)
+	if err != nil {
+		return err
+	}
+	program, err := context.CreateProgramWithSource([]string{kernelSource})
+	if err != nil {
+		return err
+	}
+	defer program.Release()
+	if err := program.BuildProgram(nil, ""); err != nil {
+		return err
+	}
+
+	kernel, err := program.CreateKernel("medianFilter")
+	if err != nil {
+		return err
+	}
+
+	const s = 2
+
+	input, err := context.CreateEmptyBuffer(cl.MemReadOnly, s*len(img.Pix))
+	if err != nil {
+		return err
+	}
+	defer input.Release()
+	output, err := context.CreateEmptyBuffer(cl.MemWriteOnly, s*len(img.Pix))
+	if err != nil {
+		return err
+	}
+	defer output.Release()
+
+	err = kernel.SetArgs(
+		input,
+		output,
+		uint32(img.Stride),
+		uint32(img.Rect.Min.X),
+		uint32(img.Rect.Min.Y),
+		uint32(img.Rect.Max.X),
+		uint32(img.Rect.Max.Y),
+		uint32(radius),
+	)
+	if err != nil {
+		return err
+	}
+
+	dataPtr := cl.Ptr(img.Pix)
+	if _, err := queue.EnqueueWriteBuffer(input, true, 0, s*len(img.Pix), dataPtr, nil); err != nil {
+		return err
+	}
+
+	globalWS := []int{img.Rect.Dx(), img.Rect.Dy()}
+	localWS := []int{3, 3}
+	globalWS[0] = (globalWS[0]/localWS[0] + 1) * localWS[0]
+	globalWS[1] = (globalWS[1]/localWS[1] + 1) * localWS[1]
+
+	if _, err := queue.EnqueueNDRangeKernel(kernel, nil, globalWS, localWS, nil); err != nil {
+		return err
+	}
+
+	if err := queue.Finish(); err != nil {
+		return err
+	}
+
+	results := make([]uint16, len(img.Pix))
+	resultsPtr := cl.Ptr(results)
+	if _, err := queue.EnqueueReadBuffer(output, false, 0, s*len(results), resultsPtr, nil); err != nil {
+		return err
+	}
+
+	copy(img.Pix, results)
+
+	return nil
 }
 
 func ycbcr(img *img48.Img) []int {

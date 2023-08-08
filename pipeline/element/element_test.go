@@ -315,7 +315,7 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 		case denoise:
 			els = append(
 				els,
-				DenoiseChroma(30),
+				DenoiseChroma(3),
 				//Denoise(3000),
 				DenoiseLuminance(1),
 			)

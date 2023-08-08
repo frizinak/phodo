@@ -30,6 +30,8 @@ type Context interface {
 
 	Get(id string) interface{}
 	Set(id string, d interface{})
+
+	// Parallel(func() error) error
 }
 
 func NewContext(verbose bool, mode Mode, ctx context.Context) *SimpleContext {
