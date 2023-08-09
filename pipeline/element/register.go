@@ -49,6 +49,8 @@ func init() {
 
 	pipeline.Register(healSpot{})
 
+	pipeline.Register(clip{})
+
 	pipeline.Register(stateElement{typ: stateStore})
 	pipeline.Register(stateElement{typ: stateRestore})
 	pipeline.Register(stateElement{typ: stateDiscard})

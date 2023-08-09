@@ -10,6 +10,14 @@ type Color interface {
 	Color() [3]uint16
 }
 
+type SimpleColor struct {
+	R, G, B uint16
+}
+
+func (s SimpleColor) Color() [3]uint16 {
+	return [3]uint16{s.R, s.G, s.B}
+}
+
 func Draw(src, dst *img48.Img, p image.Point, trans func(r, g, b uint16) bool) {
 	sr := src.Rect
 	if d := sr.Dx() - dst.Rect.Dx() + p.X; d > 0 {
@@ -177,6 +185,24 @@ func DrawCircleSrc(src, dst *img48.Img, sp, dp image.Point, outerRadius, innerRa
 			dpix[0] = uint16((idist*uint32(spix[0]) + dist*uint32(dpix[0])) >> 16)
 			dpix[1] = uint16((idist*uint32(spix[1]) + dist*uint32(dpix[1])) >> 16)
 			dpix[2] = uint16((idist*uint32(spix[2]) + dist*uint32(dpix[2])) >> 16)
+		}
+	}
+}
+
+func DrawClipping(src Color, dst *img48.Img, threshold float64) {
+	th := floatClampUint16(threshold * (1<<16 - 1))
+	_clr := src.Color()
+	clr := _clr[:]
+
+	below := th <= 1<<15-1
+
+	check := func(v uint16) bool {
+		return (!below && v >= th) || (below && v <= th)
+	}
+
+	for o := 0; o < len(dst.Pix); o += 3 {
+		if check(dst.Pix[o+0]) || check(dst.Pix[o+1]) || check(dst.Pix[o+2]) {
+			copy(dst.Pix[o:o+3:o+3], clr)
 		}
 	}
 }

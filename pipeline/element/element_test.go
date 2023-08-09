@@ -319,6 +319,12 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 				//Denoise(3000),
 				DenoiseLuminance(1),
 			)
+		case clip:
+			els = append(
+				els,
+				Clipping(0.05, nil),
+				Clipping(0.95, nil),
+			)
 		default:
 			constr = false
 		}
