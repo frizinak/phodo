@@ -86,11 +86,22 @@ func (s *SimpleContext) Mark(e Element, info ...string) {
 }
 
 func (s *SimpleContext) Warn(e Element, msg ...string) {
+	s.PrintWarning("%-25T %-29s", e, strings.Join(msg, " "))
+}
+
+func (s *SimpleContext) PrintWarning(format string, args ...interface{}) {
 	fmt.Fprintf(
 		os.Stderr,
-		"[WARN] %-25s  %-29s\n",
-		fmt.Sprintf("%T", e),
-		strings.Join(msg, " "),
+		"\033[48;5;124m\033[38;5;231m %-78s \033[0m\n",
+		fmt.Sprintf(format, args...),
+	)
+}
+
+func (s *SimpleContext) PrintAlert(format string, args ...interface{}) {
+	fmt.Fprintf(
+		os.Stderr,
+		"\033[48;5;66m\033[38;5;195m %-78s \033[0m\n",
+		fmt.Sprintf(format, args...),
 	)
 }
 

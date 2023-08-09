@@ -167,16 +167,16 @@ func Editor(ctx context.Context, c Conf, file string) error {
 		return nil
 	}
 
-	print := func(left, right string) {
-		fmt.Fprintf(c.out, "\033[48;5;66m\033[38;5;195m %-39s %38s \033[0m\n", left, right)
-	}
-
 	var cancel func()
 	ctx, cancel = context.WithCancel(ctx)
 	rctx := pipeline.NewContext(c.Verbose, pipeline.ModeEdit, ctx)
 	load := pipeline.New(
 		element.Once(element.LoadFile(c.inputFile)),
 	)
+
+	print := func(left, right string) {
+		rctx.PrintAlert("%-39s %38s", left, right)
+	}
 
 	quit := make(chan struct{})
 	exit := func() {
