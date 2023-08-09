@@ -7,24 +7,25 @@ import (
 )
 
 func Contrast(img *img48.Img, n float64) {
+	n--
+	if n < -1 {
+		n = -1
+	}
+	if n > 1 {
+		n = 1
+	}
+
 	l := make([]uint16, 1<<16)
-	v := n + 1
-	if v < 0 {
-		v = 0
-	}
-	if v > 2 {
-		v = 2
-	}
 	const mul = 1 << 17
 	div := int(mul / (1 - math.Abs(n)))
 
 	const half = 1<<15 - 1
 	switch {
-	case 0 <= v && v <= 1:
+	case -1 <= n && n <= 0:
 		for i := 0; i < 1<<16; i++ {
 			l[i] = uint16(half + (i-half)*mul/div)
 		}
-	case 1 < v && v < 2:
+	case 0 < n && n < 1:
 		for i := 0; i < 1<<16; i++ {
 			l[i] = intClampUint16(half + (i-half)*div/mul)
 		}
@@ -39,7 +40,7 @@ func Contrast(img *img48.Img, n float64) {
 
 func Brightness(img *img48.Img, n float64) {
 	l := make([]uint16, 1<<16)
-	shift := int((1<<16 - 1) * n)
+	shift := int((1<<16 - 1) * (n - 1))
 	for i := 0; i < 1<<16; i++ {
 		l[i] = intClampUint16(i + shift)
 	}
@@ -112,12 +113,10 @@ func Saturation(img *img48.Img, n float64) {
 func Black(img *img48.Img, n float64) {
 	l := make([]uint16, 1<<16)
 	const m = 1<<16 - 1
-
-	start := n * m
+	start := (n - 1) * m
 	if start < 0 {
 		start = 0
 	}
-
 	rng := m - start
 	for i := int(start); i <= m; i++ {
 		l[i] = uint16((float64(i) - start) * m / rng)
