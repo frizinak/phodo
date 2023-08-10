@@ -30,6 +30,8 @@ type Reader interface {
 	Value() Value
 	ValueDefault(Value) Value
 
+	Anko(string) Value
+
 	Element() Element
 	ElementDefault(Element) Element
 
@@ -40,15 +42,17 @@ type Value interface {
 	Float64(img *img48.Img) (float64, error)
 	Int(img *img48.Img) (int, error)
 	String(img *img48.Img) (string, error)
+	Value(*img48.Img) (interface{}, error)
 	Encode(w Writer)
 }
 
 type NilValue struct{}
 
-func (n NilValue) Float64(img *img48.Img) (float64, error) { return 0, nil }
-func (n NilValue) Int(img *img48.Img) (int, error)         { return 0, nil }
-func (n NilValue) String(img *img48.Img) (string, error)   { return "", nil }
-func (n NilValue) Encode(w Writer)                         { w.String("") }
+func (n NilValue) Float64(*img48.Img) (float64, error)   { return 0, nil }
+func (n NilValue) Int(*img48.Img) (int, error)           { return 0, nil }
+func (n NilValue) String(*img48.Img) (string, error)     { return "", nil }
+func (n NilValue) Value(*img48.Img) (interface{}, error) { return nil, nil }
+func (n NilValue) Encode(w Writer)                       { w.String("") }
 
 type PlainNumber float64
 
@@ -62,6 +66,10 @@ func (pn PlainNumber) Int(img *img48.Img) (int, error) {
 
 func (pn PlainNumber) String(img *img48.Img) (string, error) {
 	return strconv.FormatFloat(float64(pn), 'f', -1, 64), nil
+}
+
+func (pn PlainNumber) Value(img *img48.Img) (interface{}, error) {
+	return pn.Float64(img)
 }
 
 func (pn PlainNumber) Encode(w Writer) { w.Float(float64(pn)) }
@@ -86,6 +94,10 @@ func (ps PlainString) String(img *img48.Img) (string, error) {
 	return string(ps), nil
 }
 
+func (ps PlainString) Value(img *img48.Img) (interface{}, error) {
+	return ps.String(img)
+}
+
 func (ps PlainString) Encode(w Writer) { w.String(string(ps)) }
 
 type AnkoCalc struct {
@@ -96,24 +108,8 @@ type AnkoCalc struct {
 func (c AnkoCalc) Encode(w Writer) { w.CalcString(c.calc) }
 
 func (c AnkoCalc) execute(img *img48.Img) (Value, error) {
-	if img != nil {
-		w, h := img.Rect.Dx(), img.Rect.Dy()
-		m := map[string]interface{}{
-			"width":  w,
-			"height": h,
-			"print":  fmt.Println,
-		}
-
-		for k, v := range m {
-			if err := c.env.Define(k, v); err != nil {
-				return NilValue{}, err
-			}
-		}
-	}
-
-	ret, err := vm.Execute(c.env, nil, c.calc)
+	ret, err := c.Value(img)
 	if err != nil {
-		err = fmt.Errorf("anko error in `%s`: %w", c.calc, err)
 		return NilValue{}, err
 	}
 	switch v := ret.(type) {
@@ -128,6 +124,29 @@ func (c AnkoCalc) execute(img *img48.Img) (Value, error) {
 	}
 
 	return NilValue{}, fmt.Errorf("unknown type in calc: %T: %+v", ret, ret)
+}
+
+func (c AnkoCalc) Value(img *img48.Img) (interface{}, error) {
+	if img != nil {
+		w, h := img.Rect.Dx(), img.Rect.Dy()
+		m := map[string]interface{}{
+			"width":  w,
+			"height": h,
+		}
+
+		for k, v := range m {
+			if err := c.env.Define(k, v); err != nil {
+				return NilValue{}, err
+			}
+		}
+	}
+
+	ret, err := vm.Execute(c.env, nil, c.calc)
+	if err != nil {
+		err = fmt.Errorf("anko error in `%s`: %w", c.calc, err)
+	}
+
+	return ret, err
 }
 
 func (c AnkoCalc) Float64(img *img48.Img) (float64, error) {
@@ -323,6 +342,13 @@ func (e *entry) makeValue(value *entry, def Value) Value {
 	}
 
 	return PlainString(value.value)
+}
+
+func (e *entry) Anko(op string) Value {
+	return AnkoCalc{
+		env:  e.env,
+		calc: op,
+	}
 }
 
 func (e *entry) Value() Value                 { return e.makeValue(e.ix(), nil) }

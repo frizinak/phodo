@@ -146,7 +146,7 @@ func TestNilImage(t *testing.T) {
 }
 
 func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
-	ctx := pipeline.NewContext(false, pipeline.ModeConvert, context.Background())
+	ctx := pipeline.NewContext(0, io.Discard, pipeline.ModeConvert, context.Background())
 	items := pipeline.Registered()
 	for _, i := range items {
 
@@ -325,6 +325,8 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 				Clipping(0.05, nil),
 				Clipping(0.95, nil),
 			)
+		case set:
+			// ignore
 		default:
 			constr = false
 		}

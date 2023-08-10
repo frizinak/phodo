@@ -3,7 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"time"
 )
@@ -16,6 +16,15 @@ const (
 	ModeEdit
 )
 
+type Verbosity int
+
+const (
+	VerboseNone  Verbosity = 0
+	VerbosePrint Verbosity = 100
+	VerboseTime  Verbosity = 200
+	VerboseTrace Verbosity = 300
+)
+
 var onnews []func(ctx Context)
 
 func RegisterNewContextHandler(f func(ctx Context)) {
@@ -26,14 +35,15 @@ type Context interface {
 	context.Context
 	Mark(Element, ...string)
 	Warn(Element, ...string)
+	Print(Element, ...string)
 	Mode() Mode
 
 	Get(id string) interface{}
 	Set(id string, d interface{})
 }
 
-func NewContext(verbose bool, mode Mode, ctx context.Context) *SimpleContext {
-	c := &SimpleContext{verbose: verbose, mode: mode, Context: ctx}
+func NewContext(verbose Verbosity, out io.Writer, mode Mode, ctx context.Context) *SimpleContext {
+	c := &SimpleContext{verbose: verbose, mode: mode, Context: ctx, out: out}
 	c.data = make(map[string]interface{})
 	for _, cb := range onnews {
 		cb(c)
@@ -42,18 +52,20 @@ func NewContext(verbose bool, mode Mode, ctx context.Context) *SimpleContext {
 }
 
 type SimpleContext struct {
-	verbose bool
+	verbose Verbosity
 	mode    Mode
 	context.Context
 	e    string
 	t    time.Time
 	info []string
 
+	out io.Writer
+
 	data map[string]interface{}
 }
 
 func (s *SimpleContext) Mark(e Element, info ...string) {
-	if !s.verbose {
+	if s.verbose < VerboseTrace {
 		return
 	}
 
@@ -72,12 +84,12 @@ func (s *SimpleContext) Mark(e Element, info ...string) {
 		return
 	}
 	if len(i) == 0 {
-		fmt.Fprintf(os.Stderr, "%-72s %4dms\n", p, time.Since(t).Milliseconds())
+		fmt.Fprintf(s.out, "%-72s %4dms\n", p, time.Since(t).Milliseconds())
 		return
 	}
 
 	fmt.Fprintf(
-		os.Stderr,
+		s.out,
 		"%-25s %-46s %4dms \n",
 		p,
 		strings.Join(i, " "),
@@ -89,9 +101,17 @@ func (s *SimpleContext) Warn(e Element, msg ...string) {
 	s.PrintWarning("%-25T %-29s", e, strings.Join(msg, " "))
 }
 
+func (s *SimpleContext) Print(e Element, msg ...string) {
+	if s.verbose < VerbosePrint {
+		return
+	}
+	s.PrintAlert("%-25T", e)
+	fmt.Fprintln(s.out, strings.Join(msg, " "))
+}
+
 func (s *SimpleContext) PrintWarning(format string, args ...interface{}) {
 	fmt.Fprintf(
-		os.Stderr,
+		s.out,
 		"\033[48;5;124m\033[38;5;231m %-78s \033[0m\n",
 		fmt.Sprintf(format, args...),
 	)
@@ -99,7 +119,7 @@ func (s *SimpleContext) PrintWarning(format string, args ...interface{}) {
 
 func (s *SimpleContext) PrintAlert(format string, args ...interface{}) {
 	fmt.Fprintf(
-		os.Stderr,
+		s.out,
 		"\033[48;5;66m\033[38;5;195m %-78s \033[0m\n",
 		fmt.Sprintf(format, args...),
 	)

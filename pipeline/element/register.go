@@ -64,6 +64,8 @@ func init() {
 	pipeline.Register(modeOnly{mode: pipeline.ModeEdit})
 
 	pipeline.Register(calc{})
+	pipeline.Register(calc{print: true})
+	pipeline.Register(set{})
 
 	pipeline.Register(contrast{})
 	pipeline.Register(brightness{})

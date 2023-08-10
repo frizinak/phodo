@@ -96,7 +96,12 @@ func main() {
 	c := phodo.NewConf(os.Stderr, nil)
 
 	flagVerbose := func(set *flag.FlagSet) {
-		set.BoolVar(&c.Verbose, "v", false, "Be verbose")
+		set.IntVar(
+			&c.Verbose,
+			"v",
+			0,
+			"Verbose: 0: none, 100: print, 200: timing, 300: trace",
+		)
 	}
 
 	flagPipeline := func(set *flag.FlagSet) {
