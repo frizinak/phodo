@@ -13,6 +13,7 @@ func Clipping(threshold float64, clr Color) pipeline.Element {
 }
 
 type clip struct {
+	channel   bool
 	threshold pipeline.Value
 	clr       Color
 }
@@ -21,7 +22,12 @@ type defaultColor struct {
 	clrRGB16
 }
 
-func (clip) Name() string { return "clipping" }
+func (c clip) Name() string {
+	if c.channel {
+		return "clipping-channel"
+	}
+	return "clipping"
+}
 func (clip) Inline() bool { return true }
 
 func (c clip) Encode(w pipeline.Writer) error {
@@ -79,15 +85,21 @@ func (c clip) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, err
 	}
 
-	var clr core.Color = c.clr
-	if _, ok := clr.(defaultColor); ok || clr == nil {
+	var clr core.Color
+	if c.clr != nil {
+		clr, err = c.clr.Color()
+		if err != nil {
+			return img, err
+		}
+	}
+	if _, ok := c.clr.(defaultColor); ok || clr == nil {
 		clr = core.SimpleColor{0, 0, 0}
 		if th <= 0.5 {
 			clr = core.SimpleColor{1<<16 - 1, 1<<16 - 1, 1<<16 - 1}
 		}
 	}
 
-	core.DrawClipping(clr, img, th)
+	core.DrawClipping(clr, img, th, c.channel)
 
 	return img, nil
 }

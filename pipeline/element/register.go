@@ -44,12 +44,14 @@ func init() {
 	pipeline.Register(clrRGB16{})
 
 	pipeline.Register(rgbAdd{})
-	pipeline.Register(rgbMul{})
+	pipeline.Register(rgbMul{normalize: true})
+	pipeline.Register(rgbMul{normalize: false})
 	pipeline.Register(whiteBalanceSpot{})
 
 	pipeline.Register(healSpot{})
 
-	pipeline.Register(clip{})
+	pipeline.Register(clip{channel: false})
+	pipeline.Register(clip{channel: true})
 
 	pipeline.Register(stateElement{typ: stateStore})
 	pipeline.Register(stateElement{typ: stateRestore})
@@ -63,7 +65,7 @@ func init() {
 	pipeline.Register(modeOnly{mode: pipeline.ModeScript})
 	pipeline.Register(modeOnly{mode: pipeline.ModeEdit})
 
-	pipeline.Register(calc{})
+	pipeline.Register(calc{print: false})
 	pipeline.Register(calc{print: true})
 	pipeline.Register(set{})
 
@@ -80,8 +82,7 @@ func init() {
 	pipeline.Register(crop{})
 
 	pipeline.Register(compose{})
-	pipeline.Register(Pos{})
-	pipeline.Register(PosTransparent{})
+	pipeline.Register(pos{})
 
 	pipeline.Register(HistogramElement{})
 

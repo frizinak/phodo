@@ -162,8 +162,12 @@ func (r rectangle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) 
 	if err != nil {
 		return img, err
 	}
+	clr, err := r.clr.Color()
+	if err != nil {
+		return img, err
+	}
 
-	core.DrawRectangle(r.clr, img, image.Rect(x, y, x+w, y+h), b)
+	core.DrawRectangle(clr, img, image.Rect(x, y, x+w, y+h), b)
 
 	return img, nil
 }
@@ -234,8 +238,12 @@ func (c circle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	if err != nil {
 		return img, err
 	}
+	clr, err := c.clr.Color()
+	if err != nil {
+		return img, err
+	}
 
-	core.DrawCircleBorder(c.clr, img, image.Point{x, y}, r, w)
+	core.DrawCircleBorder(clr, img, image.Point{x, y}, r, w)
 
 	return img, nil
 }

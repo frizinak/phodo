@@ -59,35 +59,28 @@ func Gamma(img *img48.Img, n float64) {
 	LUT16(img, l)
 }
 
-func RGBMultiply(img *img48.Img, r, g, b float64) {
-	sum := r + g + b
-	f := 3.0 / sum
-	r *= f
-	g *= f
-	b *= f
-
-	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
-		o_ := (y - img.Rect.Min.Y) * img.Stride
-		for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-			o := o_ + (x-img.Rect.Min.X)*3
-			pix := img.Pix[o : o+3 : o+3]
-			pix[0] = mul(pix[0], r)
-			pix[1] = mul(pix[1], g)
-			pix[2] = mul(pix[2], b)
-		}
+func RGBMultiply(img *img48.Img, r, g, b float64, norm bool) {
+	if norm {
+		sum := r + g + b
+		f := 3.0 / sum
+		r *= f
+		g *= f
+		b *= f
+	}
+	for o := 0; o < len(img.Pix); o += 3 {
+		pix := img.Pix[o : o+3 : o+3]
+		pix[0] = mul(pix[0], r)
+		pix[1] = mul(pix[1], g)
+		pix[2] = mul(pix[2], b)
 	}
 }
 
 func RGBAdd(img *img48.Img, r, g, b int) {
-	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
-		o_ := (y - img.Rect.Min.Y) * img.Stride
-		for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-			o := o_ + (x-img.Rect.Min.X)*3
-			pix := img.Pix[o : o+3 : o+3]
-			pix[0] = add(pix[0], r)
-			pix[1] = add(pix[1], g)
-			pix[2] = add(pix[2], b)
-		}
+	for o := 0; o < len(img.Pix); o += 3 {
+		pix := img.Pix[o : o+3 : o+3]
+		pix[0] = add(pix[0], r)
+		pix[1] = add(pix[1], g)
+		pix[2] = add(pix[2], b)
 	}
 }
 
@@ -97,16 +90,12 @@ func Saturation(img *img48.Img, n float64) {
 		return intClampUint16(avg + (int(v)-avg)*factor/(1<<16-1))
 	}
 
-	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
-		o_ := (y - img.Rect.Min.Y) * img.Stride
-		for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-			o := o_ + (x-img.Rect.Min.X)*3
-			pix := img.Pix[o : o+3 : o+3]
-			avg := (int(pix[0]) + int(pix[1]) + int(pix[2])) / 3
-			pix[0] = c(pix[0], avg)
-			pix[1] = c(pix[1], avg)
-			pix[2] = c(pix[2], avg)
-		}
+	for o := 0; o < len(img.Pix); o += 3 {
+		pix := img.Pix[o : o+3 : o+3]
+		avg := (int(pix[0]) + int(pix[1]) + int(pix[2])) / 3
+		pix[0] = c(pix[0], avg)
+		pix[1] = c(pix[1], avg)
+		pix[2] = c(pix[2], avg)
 	}
 }
 

@@ -21,12 +21,12 @@ const (
 
 func Text(x, y int, size float64, str string, clr Color, f Font) pipeline.Element {
 	return text{
-		x:     pipeline.PlainNumber(x),
-		y:     pipeline.PlainNumber(y),
-		size:  pipeline.PlainNumber(size),
-		text:  pipeline.PlainString(str),
-		color: clr,
-		font:  pipeline.PlainString(f),
+		x:    pipeline.PlainNumber(x),
+		y:    pipeline.PlainNumber(y),
+		size: pipeline.PlainNumber(size),
+		text: pipeline.PlainString(str),
+		clr:  clr,
+		font: pipeline.PlainString(f),
 	}
 }
 
@@ -116,11 +116,11 @@ func (t ttfFontFile) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error
 func FontKey(str Font) string { return fmt.Sprintf(":font:%s", str) }
 
 type text struct {
-	x, y  pipeline.Value
-	size  pipeline.Value
-	color Color
-	text  pipeline.Value
-	font  pipeline.Value
+	x, y pipeline.Value
+	size pipeline.Value
+	clr  Color
+	text pipeline.Value
+	font pipeline.Value
 }
 
 func (text) Name() string { return "text" }
@@ -131,7 +131,7 @@ func (t text) Encode(w pipeline.Writer) error {
 	w.Value(t.y)
 	w.Value(t.size)
 	w.Value(t.text)
-	err := w.Element(t.color)
+	err := w.Element(t.clr)
 	w.Value(t.font)
 	return err
 }
@@ -143,7 +143,7 @@ func (t text) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	t.text = r.Value()
 	clr := r.ElementDefault(RGB16(0, 0, 0))
 	var ok bool
-	t.color, ok = clr.(Color)
+	t.clr, ok = clr.(Color)
 	if !ok {
 		return t, fmt.Errorf("element of type '%T' is not a Color", clr)
 	}
@@ -193,6 +193,10 @@ func (t text) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	if err != nil {
 		return img, err
 	}
+	clr, err := t.clr.Color()
+	if err != nil {
+		return img, err
+	}
 
 	_font := ctx.Get(FontKey(Font(fn)))
 	if _font == nil {
@@ -210,11 +214,11 @@ func (t text) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, fmt.Errorf("invalid font: '%s': %T", fn, _font)
 	}
 
-	clr := t.color.Color()
+	r, g, b := clr.Color()
 
 	return img, core.Text(
 		img,
-		image.NewUniform(color.NRGBA64{clr[0], clr[1], clr[2], 1<<16 - 1}),
+		image.NewUniform(color.NRGBA64{r, g, b, 1<<16 - 1}),
 		x, y,
 		size,
 		txt,

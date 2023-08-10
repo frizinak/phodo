@@ -16,11 +16,12 @@ func RGBAdd(r, g, b int) pipeline.Element {
 	}
 }
 
-func RGBMul(r, g, b float64) pipeline.Element {
+func RGBMul(r, g, b float64, normalize bool) pipeline.Element {
 	return rgbMul{
-		pipeline.PlainNumber(r),
-		pipeline.PlainNumber(g),
-		pipeline.PlainNumber(b),
+		normalize: normalize,
+		r:         pipeline.PlainNumber(r),
+		g:         pipeline.PlainNumber(g),
+		b:         pipeline.PlainNumber(b),
 	}
 }
 
@@ -89,9 +90,17 @@ func (rgb rgbAdd) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return img, nil
 }
 
-type rgbMul struct{ r, g, b pipeline.Value }
+type rgbMul struct {
+	r, g, b   pipeline.Value
+	normalize bool
+}
 
-func (rgbMul) Name() string { return "rgb-multiply" }
+func (r rgbMul) Name() string {
+	if r.normalize {
+		return "rgb-multiply"
+	}
+	return "rgb-multiply-nn"
+}
 func (rgbMul) Inline() bool { return true }
 
 func (r rgbMul) Encode(w pipeline.Writer) error {
@@ -109,16 +118,27 @@ func (rgb rgbMul) Decode(r pipeline.Reader) (pipeline.Element, error) {
 }
 
 func (r rgbMul) Help() [][2]string {
-	return [][2]string{
+	b := [][2]string{
 		{
 			fmt.Sprintf("%s(<r> <g> <b>)", r.Name()),
 			"Adjusts rgb components of the current image by multiplying them",
 		},
 		{
 			"",
-			"with the given <r> <g> and <b> multipliers.",
+			"with the given <r> <g> and <b> multipliers. The absolute luminance",
 		},
 	}
+
+	if r.normalize {
+		return append(b, [2]string{
+			"",
+			"will remain mathematically constant by normalizing the three values.",
+		})
+	}
+	return append(b, [2]string{
+		"",
+		"will not be normalized.",
+	})
 }
 
 func (rgb rgbMul) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
@@ -141,7 +161,7 @@ func (rgb rgbMul) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, err
 	}
 
-	core.RGBMultiply(img, r, g, b)
+	core.RGBMultiply(img, r, g, b, rgb.normalize)
 
 	return img, nil
 }
@@ -203,7 +223,7 @@ func (wb whiteBalanceSpot) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img,
 
 	r, g, b := core.WhiteBalanceCalc(img, x, y, radius)
 
-	core.RGBMultiply(img, r, g, b)
+	core.RGBMultiply(img, r, g, b, true)
 
 	return img, nil
 }

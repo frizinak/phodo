@@ -179,22 +179,18 @@ func (hist HistogramElement) Do(ctx pipeline.Context, img *img48.Img) (*img48.Im
 	rgbl := uint32(len(rgb[0]))
 	vl := uint32(len(white))
 
-	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
-		o_ := (y - img.Rect.Min.Y) * img.Stride
-		for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-			o := o_ + (x-img.Rect.Min.X)*3
-			pix := img.Pix[o : o+3 : o+3]
-			r := uint32(pix[0])
-			g := uint32(pix[1])
-			b := uint32(pix[2])
-			if rgbl != 0 {
-				rgb[0][r*rgbl/(1<<16)]++
-				rgb[1][g*rgbl/(1<<16)]++
-				rgb[2][b*rgbl/(1<<16)]++
-			}
-			if vl != 0 {
-				white[(r+g+b)*vl/(3<<16)]++
-			}
+	for o := 0; o < len(img.Pix); o += 3 {
+		pix := img.Pix[o : o+3 : o+3]
+		r := uint32(pix[0])
+		g := uint32(pix[1])
+		b := uint32(pix[2])
+		if rgbl != 0 {
+			rgb[0][r*rgbl/(1<<16)]++
+			rgb[1][g*rgbl/(1<<16)]++
+			rgb[2][b*rgbl/(1<<16)]++
+		}
+		if vl != 0 {
+			white[(r+g+b)*vl/(3<<16)]++
 		}
 	}
 

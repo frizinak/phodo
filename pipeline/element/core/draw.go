@@ -7,18 +7,65 @@ import (
 )
 
 type Color interface {
-	Color() [3]uint16
+	Color() (r, g, b uint16)
 }
 
-type SimpleColor struct {
-	R, G, B uint16
+type SimpleColor struct{ R, G, B uint16 }
+
+func (s SimpleColor) Color() (uint16, uint16, uint16) { return s.R, s.G, s.B }
+
+type Blender func(src, dst []uint16)
+
+func BlendScreen(src, dst []uint16) {
+	for n := 0; n < 3; n++ {
+		dst[n] = 0xffff - uint16((uint32(0xffff-src[n])*uint32(0xffff-dst[n]))>>16)
+	}
 }
 
-func (s SimpleColor) Color() [3]uint16 {
-	return [3]uint16{s.R, s.G, s.B}
+func BlendMultiply(src, dst []uint16) {
+	for n := 0; n < 3; n++ {
+		dst[n] = uint16((uint32(src[n]) * uint32(dst[n])) >> 16)
+	}
 }
 
-func Draw(src, dst *img48.Img, p image.Point, trans func(r, g, b uint16) bool) {
+func BlendOverlay(src, dst []uint16) {
+	for n := 0; n < 3; n++ {
+		if src[n] > 0x7fff {
+			dst[n] = 0xffff - uint16(uint32(0xffff-src[n])*uint32(0xffff-dst[n])>>15)
+			continue
+		}
+
+		dst[n] = uint16((uint32(src[n]) * uint32(dst[n])) >> 15)
+	}
+}
+
+func BlendDarken(src, dst []uint16) {
+	for n := 0; n < 3; n++ {
+		if src[n] < dst[n] {
+			dst[n] = src[n]
+		}
+	}
+}
+
+func BlendLighten(src, dst []uint16) {
+	for n := 0; n < 3; n++ {
+		if src[n] > dst[n] {
+			dst[n] = src[n]
+		}
+	}
+}
+
+func BlendOpacity(opacity float64) Blender {
+	d := uint32((1<<16 - 1) * opacity)
+	id := (1<<16 - 1) - d
+	return func(src, dst []uint16) {
+		for n := 0; n < 3; n++ {
+			dst[n] = uint16((d*uint32(src[n]) + id*uint32(dst[n])) >> 16)
+		}
+	}
+}
+
+func Draw(src, dst *img48.Img, p image.Point, blender Blender) {
 	sr := src.Rect
 	if d := sr.Dx() - dst.Rect.Dx() + p.X; d > 0 {
 		sr.Max.X -= d
@@ -27,27 +74,42 @@ func Draw(src, dst *img48.Img, p image.Point, trans func(r, g, b uint16) bool) {
 		sr.Max.Y -= d
 	}
 
+	if blender == nil {
+		blender = func(src, dst []uint16) {
+			copy(dst, src)
+		}
+	}
+
 	for y := sr.Min.Y; y < sr.Max.Y; y++ {
+		ny := y + p.Y
+		if ny < dst.Rect.Min.Y {
+			continue
+		}
+		if ny >= dst.Rect.Max.Y {
+			break
+		}
+
 		so_ := (y - sr.Min.Y) * src.Stride
-		do_ := (y + p.Y - sr.Min.Y) * dst.Stride
+		do_ := (ny - sr.Min.Y) * dst.Stride
 		for x := sr.Min.X; x < sr.Max.X; x++ {
-			so := so_ + (x-sr.Min.X)*3
-			do := do_ + (x+p.X-sr.Min.X)*3
-			if do < 0 {
+			nx := x + p.X
+			if nx < dst.Rect.Min.X {
 				continue
 			}
-			p := src.Pix[so : so+3 : so+3]
-			if do < len(dst.Pix) && (trans == nil ||
-				!trans(p[0], p[1], p[2])) {
-				copy(dst.Pix[do:do+3:do+3], p)
+			if nx >= dst.Rect.Max.X {
+				break
 			}
+
+			so := so_ + (x-sr.Min.X)*3
+			do := do_ + (nx-sr.Min.X)*3
+			blender(src.Pix[so:so+3:so+3], dst.Pix[do:do+3:do+3])
 		}
 	}
 }
 
 func DrawRectangle(src Color, dst *img48.Img, rect image.Rectangle, width int) {
-	_clr := src.Color()
-	clr := _clr[:]
+	r, g, b := src.Color()
+	clr := []uint16{r, g, b}
 	ll := func(x, y int) {
 		if x >= dst.Rect.Min.X && y >= dst.Rect.Min.Y && x < dst.Rect.Max.X && y < dst.Rect.Max.Y {
 			o := y*dst.Stride + x*3
@@ -189,19 +251,35 @@ func DrawCircleSrc(src, dst *img48.Img, sp, dp image.Point, outerRadius, innerRa
 	}
 }
 
-func DrawClipping(src Color, dst *img48.Img, threshold float64) {
+func DrawClipping(src Color, dst *img48.Img, threshold float64, singleChannel bool) {
 	th := floatClampUint16(threshold * (1<<16 - 1))
-	_clr := src.Color()
-	clr := _clr[:]
+	r, g, b := src.Color()
+	clr := []uint16{r, g, b}
 
 	below := th <= 1<<15-1
 
-	check := func(v uint16) bool {
-		return (!below && v >= th) || (below && v <= th)
+	var check func(r, g, b uint16) bool
+	switch {
+	case singleChannel && below:
+		check = func(r, g, b uint16) bool {
+			return r <= th || g <= th || b <= th
+		}
+	case singleChannel && !below:
+		check = func(r, g, b uint16) bool {
+			return r >= th || g >= th || b >= th
+		}
+	case !singleChannel && below:
+		check = func(r, g, b uint16) bool {
+			return r/3+g/3+b/3 <= th
+		}
+	case !singleChannel && !below:
+		check = func(r, g, b uint16) bool {
+			return r/3+g/3+b/3 >= th
+		}
 	}
 
 	for o := 0; o < len(dst.Pix); o += 3 {
-		if check(dst.Pix[o+0]) || check(dst.Pix[o+1]) || check(dst.Pix[o+2]) {
+		if check(dst.Pix[o+0], dst.Pix[o+1], dst.Pix[o+2]) {
 			copy(dst.Pix[o:o+3:o+3], clr)
 		}
 	}
@@ -243,19 +321,22 @@ func linehorizcb(dst *img48.Img, cb func(y int, pix []uint16)) func(x1, x2, y in
 }
 
 func linehorizdrawer(src Color, dst *img48.Img) func(x1, x2, y int) {
-	_clr := src.Color()
-	clr := _clr[:]
+	r, g, b := src.Color()
+	clr := []uint16{r, g, b}
+
 	cb := linehorizcb(dst, func(y int, pix []uint16) {
 		for n := 0; n < len(pix); n += 3 {
 			copy(pix[n:n+3:n+3], clr)
 		}
 	})
+
 	return cb
 }
 
 func pointdrawer(src Color, dst *img48.Img) func(x, y int) {
-	_clr := src.Color()
-	clr := _clr[:]
+	r, g, b := src.Color()
+	clr := []uint16{r, g, b}
+
 	return func(x, y int) {
 		if y >= dst.Rect.Max.Y {
 			y = dst.Rect.Max.Y - 1

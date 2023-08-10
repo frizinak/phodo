@@ -64,13 +64,12 @@ func Hex(str string) (clrRGB16, error) {
 }
 
 type Color interface {
-	core.Color
+	Color() (core.Color, error)
 	pipeline.Element
 }
 
 type clrHex struct {
 	str pipeline.Value
-	c   Color
 }
 
 func (clrHex) Name() string { return "hex" }
@@ -100,16 +99,16 @@ func (hex clrHex) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return img, nil
 }
 
-func (hex clrHex) Color() [3]uint16 {
+func (hex clrHex) Color() (core.Color, error) {
 	str, err := hex.str.String(nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	hex.c, err = Hex(str)
+	c, err := Hex(str)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return hex.c.Color()
+	return c.Color()
 }
 
 type clrRGB struct {
@@ -147,22 +146,26 @@ func (clr clrRGB) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return img, nil
 }
 
-func (clr clrRGB) Color() [3]uint16 {
+func (clr clrRGB) Color() (core.Color, error) {
 	r, err := clr.r.Int(nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	g, err := clr.g.Int(nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	b, err := clr.b.Int(nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	_r, _g, _b := uint16(r), uint16(g), uint16(b)
-	return [3]uint16{uint16(_r<<8 | _r), uint16(_g<<8 | _g), uint16(_b<<8 | _b)}
+	return core.SimpleColor{
+		uint16(_r<<8 | _r),
+		uint16(_g<<8 | _g),
+		uint16(_b<<8 | _b),
+	}, nil
 }
 
 type clrRGB16 struct {
@@ -200,18 +203,18 @@ func (clr clrRGB16) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error)
 	return img, nil
 }
 
-func (clr clrRGB16) Color() [3]uint16 {
+func (clr clrRGB16) Color() (core.Color, error) {
 	r, err := clr.r.Int(nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	g, err := clr.g.Int(nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	b, err := clr.b.Int(nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return [3]uint16{uint16(r), uint16(g), uint16(b)}
+	return core.SimpleColor{uint16(r), uint16(g), uint16(b)}, nil
 }

@@ -219,7 +219,7 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 				RGBAdd(5000, 5000, 60000),
 			)
 		case rgbMul:
-			els = append(els, RGBMul(1.2, 0.8, 1.7))
+			els = append(els, RGBMul(1.2, 0.8, 1.7, true), RGBMul(2, 5, 6, false))
 		case whiteBalanceSpot:
 			els = append(
 				els,
@@ -273,16 +273,11 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 				Crop(200, 200, -500, -500),
 			)
 
-		case Pos:
+		case pos:
 			els = append(
 				els,
-				NewPos(50, 50, Load(bytes.NewReader(jpeg64x64))),
-				NewPos(-50, 50, Load(bytes.NewReader(jpeg64x64))),
-			)
-		case PosTransparent:
-			els = append(
-				els,
-				NewPosTransparent(-50, 50, Load(bytes.NewReader(jpeg64x64)), RGB8(0, 0, 0)),
+				NewPos(50, 50, "", Load(bytes.NewReader(jpeg64x64))),
+				NewPos(-50, 50, BlendLighten, Load(bytes.NewReader(jpeg64x64))),
 			)
 		case HistogramElement:
 			els = append(

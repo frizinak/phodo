@@ -3,82 +3,30 @@ package element
 import (
 	"fmt"
 	"image"
+	"sort"
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-func NewPos(x, y int, e pipeline.Element) Pos {
-	return Pos{e, Point{X: pipeline.PlainNumber(x), Y: pipeline.PlainNumber(y)}}
-}
-
-func NewPosTransparent(x, y int, e pipeline.Element, trans Color) PosTransparent {
-	return PosTransparent{Pos: NewPos(x, y, e), clr: trans, _clr: trans.Color()}
+func NewPos(x, y int, blend BlendMode, e pipeline.Element) Positionable {
+	return pos{
+		Point{X: pipeline.PlainNumber(x), Y: pipeline.PlainNumber(y)},
+		e,
+		pipeline.PlainString(blend),
+	}
 }
 
 func Compose(in ...Positionable) pipeline.Element {
 	return compose{in}
 }
 
-type PosTransparent struct {
-	Pos
-	clr  Color
-	_clr [3]uint16
-}
-
-func (p PosTransparent) Transparent(r, g, b uint16) bool {
-	return p._clr[0] == r && p._clr[1] == g && p._clr[2] == b
-}
-
-func (PosTransparent) Name() string { return "pos-alpha" }
-
-func (p PosTransparent) Help() [][2]string {
-	return [][2]string{
-		{
-			fmt.Sprintf("%s(<x> <y> <color> <element>)", p.Name()),
-			"Same as pos() but don't copy pixels of the specified color.",
-		},
-	}
-}
-
-func (p PosTransparent) Encode(w pipeline.Writer) error {
-	w.Value(p.p.X)
-	w.Value(p.p.Y)
-	if err := w.Element(p.clr); err != nil {
-		return err
-	}
-
-	return w.Element(p.el)
-}
-
-func (p PosTransparent) Decode(r pipeline.Reader) (pipeline.Element, error) {
-	p.p.X = r.Value()
-	p.p.Y = r.Value()
-
-	clr := r.Element()
-	var ok bool
-	p.clr, ok = clr.(Color)
-	if !ok {
-		return p, fmt.Errorf("element of type '%T' is not a Color", clr)
-	}
-	p._clr = p.clr.Color()
-
-	p.el = r.Element()
-
-	return p, nil
-}
-
-type Pos struct {
-	el pipeline.Element
-	p  Point
-}
-
 type Point struct {
 	X, Y pipeline.Value
 }
 
-func (p Point) Execute(img *img48.Img) (image.Point, error) {
+func (p Point) Value(img *img48.Img) (image.Point, error) {
 	var pt image.Point
 	var err error
 	pt.X, err = p.X.Int(img)
@@ -89,35 +37,92 @@ func (p Point) Execute(img *img48.Img) (image.Point, error) {
 	return pt, err
 }
 
-func (p Pos) Point() Point              { return p.p }
-func (p Pos) Element() pipeline.Element { return p.el }
-
-func (Pos) Name() string { return "pos" }
-func (Pos) Inline() bool { return true }
-
-func (p Pos) Help() [][2]string {
-	return [][2]string{
-		{
-			fmt.Sprintf("%s(<x> <y> <element>)", p.Name()),
-			"Assigns an x and y coordinate to the given element.",
-		},
-	}
+type pos struct {
+	p     Point
+	el    pipeline.Element
+	blend pipeline.Value
 }
 
-func (p Pos) Encode(w pipeline.Writer) error {
+func (p pos) Point() Point              { return p.p }
+func (p pos) Element() pipeline.Element { return p.el }
+func (p pos) BlendMode() (core.Blender, error) {
+	if p.blend == nil {
+		return nil, nil
+	}
+
+	// TODO if not numeric anko script will run twice.
+	opacity, err := p.blend.Float64(nil)
+	if err == nil {
+		return core.BlendOpacity(opacity), nil
+	}
+
+	v, err := p.blend.String(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	b := BlendNone
+	if v != "" {
+		b = BlendMode(v)
+	}
+
+	blender, ok := BlendModes[b]
+	if !ok {
+		err = fmt.Errorf("invalid blending mode '%s'", b)
+	}
+
+	return blender, err
+}
+
+func (pos) Name() string { return "pos" }
+func (pos) Inline() bool { return true }
+
+func (p pos) Help() [][2]string {
+	v := [][2]string{
+		{
+			fmt.Sprintf("%s(<x> <y> [blend mode] <element>)", p.Name()),
+			"Assigns an x and y coordinate to the given element and sets the.",
+		},
+		{
+			"",
+			"blending mode. <blend mode> is either an opacity number or one of:",
+		},
+	}
+
+	list := make([]string, 0, len(BlendModes)+1)
+	for k := range BlendModes {
+		list = append(list, string(k))
+	}
+	sort.Strings(list)
+
+	v = append(v, [2]string{"", fmt.Sprintf(" - %s", BlendNone)})
+	for _, k := range list {
+		v = append(v, [2]string{"", fmt.Sprintf(" - %s", k)})
+	}
+	return v
+}
+
+func (p pos) Encode(w pipeline.Writer) error {
 	w.Value(p.p.X)
 	w.Value(p.p.Y)
+	if p.blend != nil {
+		w.Value(p.blend)
+	}
 	return w.Element(p.el)
 }
 
-func (p Pos) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (p pos) Decode(r pipeline.Reader) (pipeline.Element, error) {
+
 	p.p.X = r.Value()
 	p.p.Y = r.Value()
+	if r.Len() == 4 {
+		p.blend = r.Value()
+	}
 	p.el = r.Element()
 	return p, nil
 }
 
-func (p Pos) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+func (p pos) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	return p.el.Do(ctx, img)
 }
 
@@ -150,13 +155,30 @@ func (c compose) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-type Positionable interface {
-	Point() Point
-	Element() pipeline.Element
+type BlendMode string
+
+const (
+	BlendNone     BlendMode = "none"
+	BlendScreen   BlendMode = "screen"
+	BlendMultiply BlendMode = "multiply"
+	BlendOverlay  BlendMode = "overlay"
+	BlendDarken   BlendMode = "darken"
+	BlendLighten  BlendMode = "lighten"
+)
+
+var BlendModes = map[BlendMode]core.Blender{
+	BlendScreen:   core.BlendScreen,
+	BlendMultiply: core.BlendMultiply,
+	BlendOverlay:  core.BlendOverlay,
+	BlendDarken:   core.BlendDarken,
+	BlendLighten:  core.BlendLighten,
 }
 
-type Transparent interface {
-	Transparent(r, g, b uint16) bool
+type Positionable interface {
+	pipeline.Element
+	Point() Point
+	Element() pipeline.Element
+	BlendMode() (core.Blender, error)
 }
 
 func (c compose) Decode(r pipeline.Reader) (pipeline.Element, error) {
@@ -187,17 +209,17 @@ func (c compose) doall(ctx pipeline.Context, img *img48.Img) ([]*img48.Img, erro
 }
 
 func (c compose) do(p Positionable, src, dst *img48.Img) error {
-	var t func(r, g, b uint16) bool
-	trans, ok := p.(Transparent)
-	if ok {
-		t = trans.Transparent
-	}
-
-	pnt, err := p.Point().Execute(dst)
+	pnt, err := p.Point().Value(dst)
 	if err != nil {
 		return err
 	}
-	core.Draw(src, dst, pnt, t)
+
+	blender, err := p.BlendMode()
+	if err != nil {
+		return err
+	}
+
+	core.Draw(src, dst, pnt, blender)
 	return nil
 }
 

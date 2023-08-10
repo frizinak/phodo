@@ -26,75 +26,59 @@ func CLUT(img, clut *img48.Img, amount float64) error {
 }
 
 func CLUT4(img, clut *img48.Img, amount float64) {
-	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
-		o_ := (y - img.Rect.Min.Y) * img.Stride
-		for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-			o := o_ + (x-img.Rect.Min.X)*3
-			pix := img.Pix[o : o+3 : o+3]
-			r := pix[0] / 4096
-			g := pix[1] / 4096
-			b := pix[2] / 4096
+	for o := 0; o < len(img.Pix); o += 3 {
+		pix := img.Pix[o : o+3 : o+3]
+		r := pix[0] / 4096
+		g := pix[1] / 4096
+		b := pix[2] / 4096
 
-			hx := int(r%16 + (g%4)*16)
-			hy := int(b*4 + g/4)
-			v := hy*192 + hx*3
-			ipol(pix, clut.Pix[v:v+3:v+3], amount)
-		}
+		hx := int(r%16 + (g%4)*16)
+		hy := int(b*4 + g/4)
+		v := hy*192 + hx*3
+		ipol(pix, clut.Pix[v:v+3:v+3], amount)
 	}
 }
 
 func CLUT8(img, clut *img48.Img, amount float64) {
-	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
-		o_ := (y - img.Rect.Min.Y) * img.Stride
-		for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-			o := o_ + (x-img.Rect.Min.X)*3
-			pix := img.Pix[o : o+3 : o+3]
-			r := pix[0] / 1024
-			g := pix[1] / 1024
-			b := pix[2] / 1024
+	for o := 0; o < len(img.Pix); o += 3 {
+		pix := img.Pix[o : o+3 : o+3]
+		r := pix[0] / 1024
+		g := pix[1] / 1024
+		b := pix[2] / 1024
 
-			hx := int((r % 64) + (g%8)*64)
-			hy := int(b*8 + g/8)
-			v := hy*1536 + hx*3
-			ipol(pix, clut.Pix[v:v+3:v+3], amount)
-		}
+		hx := int((r % 64) + (g%8)*64)
+		hy := int(b*8 + g/8)
+		v := hy*1536 + hx*3
+		ipol(pix, clut.Pix[v:v+3:v+3], amount)
 	}
 }
 
 func CLUT12(img, clut *img48.Img, amount float64) {
-	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
-		o_ := (y - img.Rect.Min.Y) * img.Stride
-		for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-			o := o_ + (x-img.Rect.Min.X)*3
-			pix := img.Pix[o : o+3 : o+3]
-			r := pix[0] / 456
-			g := pix[1] / 456
-			b := pix[2] / 456
+	for o := 0; o < len(img.Pix); o += 3 {
+		pix := img.Pix[o : o+3 : o+3]
+		r := pix[0] / 456
+		g := pix[1] / 456
+		b := pix[2] / 456
 
-			hx := int(r%144 + (g%12)*144)
-			hy := int(b*12 + g/12)
-			v := hy*5184 + hx*3
-			ipol(pix, clut.Pix[v:v+3:v+3], amount)
-		}
+		hx := int(r%144 + (g%12)*144)
+		hy := int(b*12 + g/12)
+		v := hy*5184 + hx*3
+		ipol(pix, clut.Pix[v:v+3:v+3], amount)
 	}
 }
 
 func CLUT16(img, clut *img48.Img, amount float64) {
-	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
-		o_ := (y - img.Rect.Min.Y) * img.Stride
-		for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-			o := o_ + (x-img.Rect.Min.X)*3
-			pix := img.Pix[o : o+3 : o+3]
-			r := pix[0] / 256
-			g := pix[1] / 256
-			b := pix[2] / 256
+	for o := 0; o < len(img.Pix); o += 3 {
+		pix := img.Pix[o : o+3 : o+3]
+		r := pix[0] / 256
+		g := pix[1] / 256
+		b := pix[2] / 256
 
-			hx := int(r%256 + (g%16)*256)
-			hy := int(b*16 + g/16)
-			v := hy*12288 + hx*3
+		hx := int(r%256 + (g%16)*256)
+		hy := int(b*16 + g/16)
+		v := hy*12288 + hx*3
 
-			ipol(pix, clut.Pix[v:v+3:v+3], amount)
-		}
+		ipol(pix, clut.Pix[v:v+3:v+3], amount)
 	}
 }
 
