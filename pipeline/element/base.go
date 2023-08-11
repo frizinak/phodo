@@ -21,7 +21,7 @@ type cpy struct{}
 func (cpy) Name() string                                         { return "copy" }
 func (cpy) Inline() bool                                         { return true }
 func (cpy) Encode(w pipeline.Writer) error                       { return nil }
-func (c cpy) Decode(r pipeline.Reader) (pipeline.Element, error) { return c, nil }
+func (c cpy) Decode(r pipeline.Reader) (interface{}, error) { return c, nil }
 
 func (c cpy) Help() [][2]string {
 	return [][2]string{
@@ -52,7 +52,7 @@ func (c canvas) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (c canvas) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (c canvas) Decode(r pipeline.Reader) (interface{}, error) {
 	c.width = r.Value()
 	c.height = r.Value()
 	return c, nil

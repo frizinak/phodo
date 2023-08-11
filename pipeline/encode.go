@@ -24,6 +24,7 @@ type Writer interface {
 
 	Value(Value)
 
+	ComplexValue(ComplexValue) error
 	Element(Element) error
 }
 
@@ -156,7 +157,10 @@ func (e *Encoder) Value(n Value) { n.Encode(e) }
 
 func (e *Encoder) Float(f float64) { e.addWord(strconv.AppendFloat(nil, f, 'f', -1, 64)) }
 
-func (e *Encoder) Element(el Element) error {
+func (e *Encoder) ComplexValue(val ComplexValue) error { return e.encodable(val) }
+func (e *Encoder) Element(el Element) error            { return e.encodable(el) }
+
+func (e *Encoder) encodable(el interface{}) error {
 	s, ok := el.(Encodable)
 	if !ok {
 		return fmt.Errorf("%T is not encodable", el)

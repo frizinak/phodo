@@ -19,7 +19,7 @@ const (
 	FontGo     Font = "go-regular"
 )
 
-func Text(x, y int, size float64, str string, clr Color, f Font) pipeline.Element {
+func Text(x, y int, size float64, str string, clr pipeline.ComplexValue, f Font) pipeline.Element {
 	return text{
 		x:    pipeline.PlainNumber(x),
 		y:    pipeline.PlainNumber(y),
@@ -80,7 +80,7 @@ func (t ttfFontFile) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (t ttfFontFile) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (t ttfFontFile) Decode(r pipeline.Reader) (interface{}, error) {
 	t.name = r.Value()
 	t.path = r.Value()
 	return t, nil
@@ -118,7 +118,7 @@ func FontKey(str Font) string { return fmt.Sprintf(":font:%s", str) }
 type text struct {
 	x, y pipeline.Value
 	size pipeline.Value
-	clr  Color
+	clr  pipeline.ComplexValue
 	text pipeline.Value
 	font pipeline.Value
 }
@@ -131,23 +131,17 @@ func (t text) Encode(w pipeline.Writer) error {
 	w.Value(t.y)
 	w.Value(t.size)
 	w.Value(t.text)
-	err := w.Element(t.clr)
+	err := w.ComplexValue(t.clr)
 	w.Value(t.font)
 	return err
 }
 
-func (t text) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (t text) Decode(r pipeline.Reader) (interface{}, error) {
 	t.x = r.Value()
 	t.y = r.Value()
 	t.size = r.Value()
 	t.text = r.Value()
-	clr := r.ElementDefault(RGB16(0, 0, 0))
-	var ok bool
-	t.clr, ok = clr.(Color)
-	if !ok {
-		return t, fmt.Errorf("element of type '%T' is not a Color", clr)
-	}
-
+	t.clr = r.ComplexValueDefault(RGB16(0, 0, 0))
 	t.font = r.ValueDefault(pipeline.PlainString(FontGo))
 
 	return t, nil
@@ -193,9 +187,13 @@ func (t text) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	if err != nil {
 		return img, err
 	}
-	clr, err := t.clr.Color()
+	_clr, err := t.clr.Value(img)
 	if err != nil {
 		return img, err
+	}
+	clr, ok := _clr.(core.Color)
+	if !ok {
+		return img, fmt.Errorf("element of type '%T' is not a Color", _clr)
 	}
 
 	_font := ctx.Get(FontKey(Font(fn)))

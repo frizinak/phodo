@@ -47,7 +47,7 @@ func (c calc) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (c calc) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (c calc) Decode(r pipeline.Reader) (interface{}, error) {
 	c.calc = r.Value()
 	return c, nil
 }
@@ -89,7 +89,7 @@ func (s set) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (s set) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (s set) Decode(r pipeline.Reader) (interface{}, error) {
 	s.anko = r.Anko
 	s.variable = r.Value()
 	s.value = r.Value()

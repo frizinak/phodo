@@ -50,7 +50,7 @@ func (c clut) Encode(w pipeline.Writer) error {
 	return err
 }
 
-func (c clut) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (c clut) Decode(r pipeline.Reader) (interface{}, error) {
 	c.e = r.Element()
 	c.amount = r.ValueDefault(pipeline.PlainNumber(1))
 

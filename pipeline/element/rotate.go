@@ -13,10 +13,10 @@ func Rotate(n int) pipeline.Element        { return rotate{pipeline.PlainNumber(
 
 type orient struct{}
 
-func (orient) Name() string                                       { return "orientation" }
-func (orient) Inline() bool                                       { return true }
-func (orient) Encode(w pipeline.Writer) error                     { return nil }
-func (orient) Decode(r pipeline.Reader) (pipeline.Element, error) { return orient{}, nil }
+func (orient) Name() string                                  { return "orientation" }
+func (orient) Inline() bool                                  { return true }
+func (orient) Encode(w pipeline.Writer) error                { return nil }
+func (orient) Decode(r pipeline.Reader) (interface{}, error) { return orient{}, nil }
 
 func (o orient) Help() [][2]string {
 	return [][2]string{
@@ -69,7 +69,7 @@ func (r rotate) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (r rotate) Decode(rdr pipeline.Reader) (pipeline.Element, error) {
+func (r rotate) Decode(rdr pipeline.Reader) (interface{}, error) {
 	return rotate{
 		n: rdr.Value(),
 	}, nil

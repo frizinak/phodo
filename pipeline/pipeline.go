@@ -135,7 +135,7 @@ func (p *Pipeline) Encode(w Writer) error {
 	return nil
 }
 
-func (p *Pipeline) Decode(r Reader) (Element, error) {
+func (p *Pipeline) Decode(r Reader) (interface{}, error) {
 	name := r.Name()
 	if name[0] == NamedPrefix {
 		name = name[1:]

@@ -142,7 +142,7 @@ func (r resize) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (res resize) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (res resize) Decode(r pipeline.Reader) (interface{}, error) {
 	res.w = r.Value()
 	res.h = r.Value()
 	n := r.Len() - 2
@@ -228,7 +228,7 @@ func (c crop) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (c crop) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (c crop) Decode(r pipeline.Reader) (interface{}, error) {
 	c.x = r.Value()
 	c.y = r.Value()
 	l := r.Len()

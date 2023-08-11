@@ -45,7 +45,7 @@ func (r rgbAdd) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (rgb rgbAdd) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (rgb rgbAdd) Decode(r pipeline.Reader) (interface{}, error) {
 	rgb.r = r.Value()
 	rgb.g = r.Value()
 	rgb.b = r.Value()
@@ -110,7 +110,7 @@ func (r rgbMul) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (rgb rgbMul) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (rgb rgbMul) Decode(r pipeline.Reader) (interface{}, error) {
 	rgb.r = r.Value()
 	rgb.g = r.Value()
 	rgb.b = r.Value()
@@ -181,7 +181,7 @@ func (wb whiteBalanceSpot) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (wb whiteBalanceSpot) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (wb whiteBalanceSpot) Decode(r pipeline.Reader) (interface{}, error) {
 	wb.x = r.Value()
 	wb.y = r.Value()
 	wb.r = r.Value()

@@ -122,7 +122,7 @@ func (s stateElement) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (s stateElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (s stateElement) Decode(r pipeline.Reader) (interface{}, error) {
 	s.name = r.Value()
 	return s, nil
 }

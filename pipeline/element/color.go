@@ -63,11 +63,6 @@ func Hex(str string) (clrRGB16, error) {
 	}
 }
 
-type Color interface {
-	Color() (core.Color, error)
-	pipeline.Element
-}
-
 type clrHex struct {
 	str pipeline.Value
 }
@@ -80,7 +75,7 @@ func (hex clrHex) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (hex clrHex) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (hex clrHex) Decode(r pipeline.Reader) (interface{}, error) {
 	hex.str = r.Value()
 	return hex, nil
 }
@@ -95,12 +90,8 @@ func (hex clrHex) Help() [][2]string {
 	}
 }
 
-func (hex clrHex) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
-	return img, nil
-}
-
-func (hex clrHex) Color() (core.Color, error) {
-	str, err := hex.str.String(nil)
+func (hex clrHex) Value(img *img48.Img) (interface{}, error) {
+	str, err := hex.str.String(img)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +99,7 @@ func (hex clrHex) Color() (core.Color, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.Color()
+	return c.Value(img)
 }
 
 type clrRGB struct {
@@ -125,7 +116,7 @@ func (clr clrRGB) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (clr clrRGB) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (clr clrRGB) Decode(r pipeline.Reader) (interface{}, error) {
 	clr.r = r.Value()
 	clr.g = r.Value()
 	clr.b = r.Value()
@@ -142,20 +133,16 @@ func (clr clrRGB) Help() [][2]string {
 	}
 }
 
-func (clr clrRGB) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
-	return img, nil
-}
-
-func (clr clrRGB) Color() (core.Color, error) {
-	r, err := clr.r.Int(nil)
+func (clr clrRGB) Value(img *img48.Img) (interface{}, error) {
+	r, err := clr.r.Int(img)
 	if err != nil {
 		return nil, err
 	}
-	g, err := clr.g.Int(nil)
+	g, err := clr.g.Int(img)
 	if err != nil {
 		return nil, err
 	}
-	b, err := clr.b.Int(nil)
+	b, err := clr.b.Int(img)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +169,7 @@ func (clr clrRGB16) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (clr clrRGB16) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (clr clrRGB16) Decode(r pipeline.Reader) (interface{}, error) {
 	clr.r = r.Value()
 	clr.g = r.Value()
 	clr.b = r.Value()
@@ -199,20 +186,16 @@ func (clr clrRGB16) Help() [][2]string {
 	}
 }
 
-func (clr clrRGB16) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
-	return img, nil
-}
-
-func (clr clrRGB16) Color() (core.Color, error) {
-	r, err := clr.r.Int(nil)
+func (clr clrRGB16) Value(img *img48.Img) (interface{}, error) {
+	r, err := clr.r.Int(img)
 	if err != nil {
 		return nil, err
 	}
-	g, err := clr.g.Int(nil)
+	g, err := clr.g.Int(img)
 	if err != nil {
 		return nil, err
 	}
-	b, err := clr.b.Int(nil)
+	b, err := clr.b.Int(img)
 	if err != nil {
 		return nil, err
 	}

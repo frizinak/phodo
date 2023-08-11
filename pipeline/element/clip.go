@@ -8,14 +8,14 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-func Clipping(threshold float64, clr Color) pipeline.Element {
+func Clipping(threshold float64, clr pipeline.ComplexValue) pipeline.Element {
 	return clip{threshold: pipeline.PlainNumber(threshold), clr: clr}
 }
 
 type clip struct {
 	channel   bool
 	threshold pipeline.Value
-	clr       Color
+	clr       pipeline.ComplexValue
 }
 
 type defaultColor struct {
@@ -32,18 +32,13 @@ func (clip) Inline() bool { return true }
 
 func (c clip) Encode(w pipeline.Writer) error {
 	w.Value(c.threshold)
-	return w.Element(c.clr)
+	return w.ComplexValue(c.clr)
 }
 
-func (c clip) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (c clip) Decode(r pipeline.Reader) (interface{}, error) {
 	c.threshold = r.Value()
 
-	clr := r.ElementDefault(defaultColor{RGB16(0, 0, 0)})
-	var ok bool
-	c.clr, ok = clr.(Color)
-	if !ok {
-		return c, fmt.Errorf("element of type '%T' is not a Color", clr)
-	}
+	c.clr = r.ComplexValueDefault(defaultColor{RGB16(0, 0, 0)})
 
 	return c, nil
 }
@@ -85,14 +80,22 @@ func (c clip) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, err
 	}
 
-	var clr core.Color
-	if c.clr != nil {
-		clr, err = c.clr.Color()
-		if err != nil {
-			return img, err
-		}
+	clrVal := c.clr
+	if clrVal == nil {
+		clrVal = defaultColor{RGB16(0, 0, 0)}
 	}
-	if _, ok := c.clr.(defaultColor); ok || clr == nil {
+
+	_clr, err := clrVal.Value(img)
+	if err != nil {
+		return img, err
+	}
+
+	clr, ok := _clr.(core.Color)
+	if !ok {
+		return img, fmt.Errorf("element of type '%T' is not a Color", _clr)
+	}
+
+	if _, ok := _clr.(defaultColor); ok {
 		clr = core.SimpleColor{0, 0, 0}
 		if th <= 0.5 {
 			clr = core.SimpleColor{1<<16 - 1, 1<<16 - 1, 1<<16 - 1}

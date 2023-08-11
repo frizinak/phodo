@@ -327,6 +327,9 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 		}
 
 		if !constr {
+			if _, ok := i.(pipeline.ComplexValue); ok {
+				continue
+			}
 			e, ok := i.(pipeline.Element)
 			if !ok {
 				t.Fatalf("%s is not an element", i.Name())

@@ -116,7 +116,7 @@ func (c cache) Encode(w pipeline.Writer) error {
 	return c.p.Encode(w)
 }
 
-func (c cache) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (c cache) Decode(r pipeline.Reader) (interface{}, error) {
 	p, err := (&pipeline.Pipeline{}).Decode(r)
 	if err != nil {
 		return c, err

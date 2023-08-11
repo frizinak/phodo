@@ -68,7 +68,7 @@ func (l loader) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (l loader) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (l loader) Decode(r pipeline.Reader) (interface{}, error) {
 	l.file = r.Value()
 	return l, nil
 }
@@ -140,7 +140,7 @@ func (s saver) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (s saver) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (s saver) Decode(r pipeline.Reader) (interface{}, error) {
 	s.file = r.Value()
 	s.q = r.ValueDefault(pipeline.PlainNumber(100))
 	return s, nil

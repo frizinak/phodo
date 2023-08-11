@@ -38,7 +38,7 @@ func (spot healSpot) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (spot healSpot) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (spot healSpot) Decode(r pipeline.Reader) (interface{}, error) {
 	spot.x1 = r.Value()
 	spot.y1 = r.Value()
 	spot.x2 = r.Value()

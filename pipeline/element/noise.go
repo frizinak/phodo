@@ -36,7 +36,7 @@ func (dn denoise) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (dn denoise) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (dn denoise) Decode(r pipeline.Reader) (interface{}, error) {
 	dn.radius = r.Value()
 	return dn, nil
 }

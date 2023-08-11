@@ -111,7 +111,7 @@ func (p pos) Encode(w pipeline.Writer) error {
 	return w.Element(p.el)
 }
 
-func (p pos) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (p pos) Decode(r pipeline.Reader) (interface{}, error) {
 
 	p.p.X = r.Value()
 	p.p.Y = r.Value()
@@ -181,7 +181,7 @@ type Positionable interface {
 	BlendMode() (core.Blender, error)
 }
 
-func (c compose) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (c compose) Decode(r pipeline.Reader) (interface{}, error) {
 	l := r.Len()
 	c.items = make([]Positionable, l)
 	for i := 0; i < l; i++ {
@@ -189,7 +189,7 @@ func (c compose) Decode(r pipeline.Reader) (pipeline.Element, error) {
 		var ok bool
 		c.items[i], ok = el.(Positionable)
 		if !ok {
-			return c, fmt.Errorf("wrong type '%T' as argument %d to compose", el, i+1)
+			return c, fmt.Errorf("invalid argument %d to compose", i+1)
 		}
 	}
 

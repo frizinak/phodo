@@ -44,7 +44,7 @@ func (or or) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (or or) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (or or) Decode(r pipeline.Reader) (interface{}, error) {
 	or.list = make([]pipeline.Element, r.Len())
 	for i := 0; i < r.Len(); i++ {
 		or.list[i] = r.Element()
@@ -120,7 +120,7 @@ func (e modeOnly) Encode(w pipeline.Writer) error {
 	return e.p.Encode(w)
 }
 
-func (e modeOnly) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (e modeOnly) Decode(r pipeline.Reader) (interface{}, error) {
 	p, err := (&pipeline.Pipeline{}).Decode(r)
 	if err != nil {
 		return e, err
@@ -156,7 +156,7 @@ func (tee teeElement) Encode(w pipeline.Writer) error {
 	return tee.p.Encode(w)
 }
 
-func (tee teeElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (tee teeElement) Decode(r pipeline.Reader) (interface{}, error) {
 	p, err := (&pipeline.Pipeline{}).Decode(r)
 	if err != nil {
 		return tee, err

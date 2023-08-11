@@ -115,7 +115,7 @@ func (h HistogramElement) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (h HistogramElement) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (h HistogramElement) Decode(r pipeline.Reader) (interface{}, error) {
 	h.outputValue = r.Value()
 	h.w = r.Value()
 	h.h = r.Value()

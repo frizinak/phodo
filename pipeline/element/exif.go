@@ -81,7 +81,7 @@ func (x exif) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (x exif) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (x exif) Decode(r pipeline.Reader) (interface{}, error) {
 	for n := 0; n < r.Len(); n++ {
 		x.arr = append(x.arr, r.Value())
 	}

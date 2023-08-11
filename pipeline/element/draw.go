@@ -18,11 +18,11 @@ func Extend(top, right, bottom, left int) pipeline.Element {
 	}
 }
 
-func Border(width int, clr Color) pipeline.Element {
+func Border(width int, clr pipeline.ComplexValue) pipeline.Element {
 	return border{pipeline.PlainNumber(width), clr}
 }
 
-func Circle(x, y, r, border int, clr Color) pipeline.Element {
+func Circle(x, y, r, border int, clr pipeline.ComplexValue) pipeline.Element {
 	return circle{
 		x: pipeline.PlainNumber(x), y: pipeline.PlainNumber(y),
 		r: pipeline.PlainNumber(r), w: pipeline.PlainNumber(border),
@@ -30,7 +30,7 @@ func Circle(x, y, r, border int, clr Color) pipeline.Element {
 	}
 }
 
-func Rectangle(x, y, w, h, border int, clr Color) pipeline.Element {
+func Rectangle(x, y, w, h, border int, clr pipeline.ComplexValue) pipeline.Element {
 	return rectangle{
 		x: pipeline.PlainNumber(x), y: pipeline.PlainNumber(y),
 		w: pipeline.PlainNumber(w), h: pipeline.PlainNumber(h),
@@ -41,26 +41,19 @@ func Rectangle(x, y, w, h, border int, clr Color) pipeline.Element {
 
 type border struct {
 	width pipeline.Value
-	clr   Color
+	clr   pipeline.ComplexValue
 }
 
 func (border) Name() string { return "border" }
 func (border) Inline() bool { return true }
 func (b border) Encode(w pipeline.Writer) error {
 	w.Value(b.width)
-	return w.Element(b.clr)
+	return w.ComplexValue(b.clr)
 }
 
-func (b border) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (b border) Decode(r pipeline.Reader) (interface{}, error) {
 	b.width = r.Value()
-	const max = 1<<16 - 1
-	clr := r.ElementDefault(RGB16(max, max, max))
-	var ok bool
-	b.clr, ok = clr.(Color)
-	if !ok {
-		return b, fmt.Errorf("element of type '%T' is not a Color", clr)
-	}
-
+	b.clr = r.ComplexValueDefault(RGB16(0, 0, 0))
 	return b, nil
 }
 
@@ -94,7 +87,7 @@ type rectangle struct {
 	x, y pipeline.Value
 	w, h pipeline.Value
 	b    pipeline.Value
-	clr  Color
+	clr  pipeline.ComplexValue
 }
 
 func (rectangle) Name() string { return "rectangle" }
@@ -105,22 +98,16 @@ func (r rectangle) Encode(w pipeline.Writer) error {
 	w.Value(r.w)
 	w.Value(r.h)
 	w.Value(r.b)
-	return w.Element(r.clr)
+	return w.ComplexValue(r.clr)
 }
 
-func (rect rectangle) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (rect rectangle) Decode(r pipeline.Reader) (interface{}, error) {
 	rect.x = r.Value()
 	rect.y = r.Value()
 	rect.w = r.Value()
 	rect.h = r.Value()
 	rect.b = r.Value()
-	const max = 1<<16 - 1
-	clr := r.ElementDefault(RGB16(max, max, max))
-	var ok bool
-	rect.clr, ok = clr.(Color)
-	if !ok {
-		return rect, fmt.Errorf("element of type '%T' is not a Color", clr)
-	}
+	rect.clr = r.ComplexValueDefault(RGB16(0, 0, 0))
 
 	return rect, nil
 }
@@ -162,9 +149,13 @@ func (r rectangle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) 
 	if err != nil {
 		return img, err
 	}
-	clr, err := r.clr.Color()
+	_clr, err := r.clr.Value(img)
 	if err != nil {
 		return img, err
+	}
+	clr, ok := _clr.(core.Color)
+	if !ok {
+		return img, fmt.Errorf("element of type '%T' is not a Color", _clr)
 	}
 
 	core.DrawRectangle(clr, img, image.Rect(x, y, x+w, y+h), b)
@@ -176,7 +167,7 @@ type circle struct {
 	x, y pipeline.Value
 	r    pipeline.Value
 	w    pipeline.Value
-	clr  Color
+	clr  pipeline.ComplexValue
 }
 
 func (circle) Name() string { return "circle" }
@@ -186,21 +177,15 @@ func (c circle) Encode(w pipeline.Writer) error {
 	w.Value(c.y)
 	w.Value(c.r)
 	w.Value(c.w)
-	return w.Element(c.clr)
+	return w.ComplexValue(c.clr)
 }
 
-func (c circle) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (c circle) Decode(r pipeline.Reader) (interface{}, error) {
 	c.x = r.Value()
 	c.y = r.Value()
 	c.r = r.Value()
 	c.w = r.Value()
-	const max = 1<<16 - 1
-	clr := r.ElementDefault(RGB16(max, max, max))
-	var ok bool
-	c.clr, ok = clr.(Color)
-	if !ok {
-		return c, fmt.Errorf("element of type '%T' is not a Color", clr)
-	}
+	c.clr = r.ComplexValueDefault(RGB16(0, 0, 0))
 
 	return c, nil
 }
@@ -238,9 +223,13 @@ func (c circle) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	if err != nil {
 		return img, err
 	}
-	clr, err := c.clr.Color()
+	_clr, err := c.clr.Value(img)
 	if err != nil {
 		return img, err
+	}
+	clr, ok := _clr.(core.Color)
+	if !ok {
+		return img, fmt.Errorf("element of type '%T' is not a Color", _clr)
 	}
 
 	core.DrawCircleBorder(clr, img, image.Point{x, y}, r, w)
@@ -271,7 +260,7 @@ func (e extend) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (e extend) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (e extend) Decode(r pipeline.Reader) (interface{}, error) {
 	switch r.Len() {
 	case 1:
 		e.top = r.Value()

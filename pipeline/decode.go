@@ -20,7 +20,7 @@ import (
 type Decodable interface {
 	Name() string
 	Help() [][2]string
-	Decode(Reader) (Element, error)
+	Decode(Reader) (interface{}, error)
 }
 
 type Reader interface {
@@ -30,10 +30,13 @@ type Reader interface {
 	Value() Value
 	ValueDefault(Value) Value
 
-	Anko(string) Value
+	ComplexValue() ComplexValue
+	ComplexValueDefault(ComplexValue) ComplexValue
 
 	Element() Element
 	ElementDefault(Element) Element
+
+	Anko(string) Value
 
 	Len() int
 }
@@ -44,6 +47,10 @@ type Value interface {
 	String(img *img48.Img) (string, error)
 	Value(*img48.Img) (interface{}, error)
 	Encode(w Writer)
+}
+
+type ComplexValue interface {
+	Value(*img48.Img) (interface{}, error)
 }
 
 type NilValue struct{}
@@ -196,16 +203,6 @@ func (er *errReader) UnreadRune() {
 	er.err = er.r.UnreadRune()
 }
 
-func (er *errReader) Read(b []byte) (n int, err error) {
-	if er.err != nil {
-		return len(b), nil
-	}
-	n, err = er.r.Read(b)
-	er.err = err
-	err = nil
-	return
-}
-
 var decodables = map[string]Decodable{}
 var decodablesOrder []Decodable
 
@@ -235,8 +232,23 @@ type entry struct {
 	sum Hash
 
 	readIndex int
+	line      int
 	err       error
-	dec       func(*entry) (Element, error)
+	dec       func(*entry) (interface{}, error)
+}
+
+func (e *entry) Err() error {
+	for _, e := range e.values {
+		if err := e.Err(); err != nil {
+			return err
+		}
+	}
+
+	if e.err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("line %d: %w", e.line, e.err)
 }
 
 func (e *entry) calcHash(h hash.Hash) {
@@ -260,7 +272,7 @@ func (e entry) Dump(depth int) string {
 		calc = " (anko)"
 	}
 
-	return fmt.Sprintf("%s%s%s:\n%s", string(p), e.value, calc, strings.Join(values, ""))
+	return fmt.Sprintf("%3d: %s%s%s:\n%s", e.line, string(p), e.value, calc, strings.Join(values, ""))
 }
 
 func (e *entry) Name() string { return e.value }
@@ -269,7 +281,7 @@ func (e *entry) Len() int     { return len(e.values) }
 func (e *entry) ix() *entry {
 	n := e.readIndex
 	if n >= len(e.values) {
-		return &entry{err: fmt.Errorf("'%s': missing arg %d", e.value, n+1)}
+		return &entry{err: fmt.Errorf("'%s': missing arg %d", e.value, n+1), line: e.line}
 	}
 
 	e.readIndex++
@@ -353,17 +365,52 @@ func (e *entry) Anko(op string) Value {
 
 func (e *entry) Value() Value                 { return e.makeValue(e.ix(), nil) }
 func (e *entry) ValueDefault(def Value) Value { return e.makeValue(e.ix(), def) }
-func (e *entry) Element() Element             { return e.ElementDefault(nil) }
+
+func (e *entry) ComplexValue() ComplexValue { return e.ComplexValueDefault(nil) }
+
+func (e *entry) ComplexValueDefault(def ComplexValue) ComplexValue {
+	ie, v := e.iface(def)
+	rv, ok := v.(ComplexValue)
+	if !ok {
+		err := fmt.Errorf("%T does not implement ComplexValue", v)
+		if e.err == nil {
+			e.err = err
+		}
+		if ie != nil && ie.err == nil {
+			ie.err = err
+		}
+	}
+
+	return rv
+}
+
+func (e *entry) Element() Element { return e.ElementDefault(nil) }
 
 func (e *entry) ElementDefault(def Element) Element {
+	ie, v := e.iface(def)
+	rv, ok := v.(Element)
+	if !ok {
+		err := fmt.Errorf("%T is not an Element", v)
+		if e.err == nil {
+			e.err = err
+		}
+		if ie != nil && ie.err == nil {
+			ie.err = err
+		}
+	}
+
+	return rv
+}
+
+func (e *entry) iface(def interface{}) (*entry, interface{}) {
 	ie := e.ix()
 	if ie.err != nil {
 		if def == nil {
 			e.err = ie.err
-			return nil
+			return ie, nil
 		}
 
-		return def
+		return ie, def
 	}
 
 	v, err := e.dec(ie)
@@ -371,7 +418,7 @@ func (e *entry) ElementDefault(def Element) Element {
 		e.err = err
 	}
 
-	return v
+	return ie, v
 }
 
 type Root struct {
@@ -505,12 +552,12 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 	}
 
 	elookup := make(map[string]*propagator)
-	lookup := make(map[string]Element)
+	lookup := make(map[string]interface{})
 
-	var dec func(h hash.Hash, p *propagator, e *entry) (Element, error)
-	dec = func(h hash.Hash, p *propagator, e *entry) (Element, error) {
-		if e.err != nil {
-			return nil, e.err
+	var dec func(h hash.Hash, p *propagator, e *entry) (interface{}, error)
+	dec = func(h hash.Hash, p *propagator, e *entry) (interface{}, error) {
+		if err := e.Err(); err != nil {
+			return nil, err
 		}
 
 		e.calcHash(h)
@@ -552,7 +599,7 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 		}
 
 		sh := crc32.NewIEEE()
-		e.dec = func(e *entry) (Element, error) {
+		e.dec = func(e *entry) (interface{}, error) {
 			el, err := dec(sh, p.new(), e)
 			return el, err
 		}
@@ -560,8 +607,8 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 		if err != nil {
 			return el, err
 		}
-		if e.err != nil {
-			return el, e.err
+		if err := e.Err(); err != nil {
+			return nil, err
 		}
 
 		if named && !isRef {
@@ -592,7 +639,8 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 			}
 		}
 
-		root.Set(NamedElement{Hash: sum, Cached: false, Name: e.Name(), Element: el})
+		// TODO type cast
+		root.Set(NamedElement{Hash: sum, Cached: false, Name: e.Name(), Element: el.(Element)})
 	}
 
 	return root, nil
@@ -603,7 +651,8 @@ func (d *Decoder) decode(calcenv *env.Env, vars map[string]string, includes *[]s
 		return d.state.err
 	}
 
-	e, err := d.entries(&entry{env: calcenv}, 0, vars, includes)
+	line := 0
+	e, err := d.entries(&entry{env: calcenv}, 0, vars, includes, &line)
 	if err == nil {
 		err = d.r.Err()
 	}
@@ -617,14 +666,18 @@ func (d *Decoder) decode(calcenv *env.Env, vars map[string]string, includes *[]s
 	return d.state.err
 }
 
-func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes *[]string) (*entry, error) {
+func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes *[]string, line *int) (*entry, error) {
 	buf := make([]rune, 0, 1)
 	var str, esc, calc, wasCalc, inc bool
 	varbuf := make([]rune, 0, 1)
+	e.line = *line + 1
 
 	for {
 		r := d.r.ReadRune()
 		space := r == '\r' || r == '\n' || r == '\t' || r == ' '
+		if r == '\n' {
+			*line++
+		}
 
 		switch {
 		case r == 0:
@@ -657,6 +710,9 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 				if r == 0 {
 					break
 				}
+				if r == '\n' {
+					*line++
+				}
 				varbuf = append(varbuf, r)
 			}
 
@@ -675,7 +731,7 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 				}
 				break
 			}
-			e.values = append(e.values, &entry{env: e.env, value: val, anko: wasCalc})
+			e.values = append(e.values, &entry{env: e.env, value: val, anko: wasCalc, line: e.line})
 			wasCalc = false
 			buf = buf[:0]
 			if r == parenClose {
@@ -688,7 +744,7 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 				val = anonPipeline
 			}
 
-			ne, err := d.entries(&entry{env: e.env, value: val}, depth+1, vars, includes)
+			ne, err := d.entries(&entry{env: e.env, value: val}, depth+1, vars, includes, line)
 			buf = buf[:0]
 			if err != nil {
 				return e, err
@@ -710,6 +766,9 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 			}
 			for {
 				r = d.r.ReadRune()
+				if r == '\n' {
+					*line++
+				}
 				if r == '\n' || r == 0 {
 					break
 				}

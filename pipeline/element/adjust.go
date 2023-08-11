@@ -35,7 +35,7 @@ func (c contrast) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (c contrast) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (c contrast) Decode(r pipeline.Reader) (interface{}, error) {
 	c.n = r.Value()
 	return c, nil
 }
@@ -78,7 +78,7 @@ func (b brightness) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (b brightness) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (b brightness) Decode(r pipeline.Reader) (interface{}, error) {
 	b.n = r.Value()
 	return b, nil
 }
@@ -121,7 +121,7 @@ func (g gamma) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (g gamma) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (g gamma) Decode(r pipeline.Reader) (interface{}, error) {
 	g.n = r.Value()
 	return g, nil
 }
@@ -164,7 +164,7 @@ func (s saturation) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (s saturation) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (s saturation) Decode(r pipeline.Reader) (interface{}, error) {
 	s.n = r.Value()
 	return s, nil
 }
@@ -207,7 +207,7 @@ func (b black) Encode(w pipeline.Writer) error {
 	return nil
 }
 
-func (b black) Decode(r pipeline.Reader) (pipeline.Element, error) {
+func (b black) Decode(r pipeline.Reader) (interface{}, error) {
 	b.n = r.Value()
 	return b, nil
 }
