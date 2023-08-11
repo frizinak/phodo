@@ -2,7 +2,6 @@ package element
 
 import (
 	"fmt"
-	"image"
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
@@ -220,16 +219,26 @@ func (c crop) Help() [][2]string {
 func (c crop) Encode(w pipeline.Writer) error {
 	w.Value(c.x)
 	w.Value(c.y)
-	w.Value(c.w)
-	w.Value(c.h)
+	if c.w != nil {
+		w.Value(c.w)
+	}
+	if c.h != nil {
+		w.Value(c.h)
+	}
 	return nil
 }
 
 func (c crop) Decode(r pipeline.Reader) (pipeline.Element, error) {
 	c.x = r.Value()
 	c.y = r.Value()
-	c.w = r.Value()
-	c.h = r.Value()
+	l := r.Len()
+	if l > 2 {
+		c.w = r.Value()
+	}
+	if l > 3 {
+		c.h = r.Value()
+	}
+
 	return c, nil
 }
 
@@ -240,14 +249,6 @@ func (c crop) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(c.Name())
 	}
 
-	w, err := c.w.Int(img)
-	if err != nil {
-		return img, err
-	}
-	h, err := c.h.Int(img)
-	if err != nil {
-		return img, err
-	}
 	x, err := c.x.Int(img)
 	if err != nil {
 		return img, err
@@ -257,15 +258,33 @@ func (c crop) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, err
 	}
 
-	if w == -1 {
-		w = img.Rect.Dx()
+	var w, h int = img.Rect.Dx(), img.Rect.Dy()
+	if c.w != nil {
+		w, err = c.w.Int(img)
+		if err != nil {
+			return img, err
+		}
+	}
+	if c.h != nil {
+		h, err = c.h.Int(img)
+		if err != nil {
+			return img, err
+		}
 	}
 
-	if h == -1 {
-		h = img.Rect.Dy()
+	rect := img.Rect
+	rect.Min.X += x
+	rect.Min.Y += y
+	offx, offy := rect.Min.X, rect.Min.Y
+	if w < 0 {
+		offx = rect.Max.X
+	}
+	if h < 0 {
+		offy = rect.Max.Y
 	}
 
-	x += img.Rect.Min.X
-	y += img.Rect.Min.Y
-	return core.ImageDiscard(img.SubImage(image.Rect(x, y, x+w, y+h)).(*img48.Img)), nil
+	rect.Max.X = offx + w
+	rect.Max.Y = offy + h
+
+	return core.ImageDiscard(img.SubImage(rect).(*img48.Img)), nil
 }
