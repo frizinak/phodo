@@ -16,13 +16,11 @@ const (
 	ModeEdit
 )
 
-type Verbosity int
-
 const (
-	VerboseNone  Verbosity = 0
-	VerbosePrint Verbosity = 100
-	VerboseTime  Verbosity = 200
-	VerboseTrace Verbosity = 300
+	VerboseNone  = 0
+	VerbosePrint = 100
+	VerboseTime  = 200
+	VerboseTrace = 300
 )
 
 var onnews []func(ctx Context)
@@ -42,7 +40,7 @@ type Context interface {
 	Set(id string, d interface{})
 }
 
-func NewContext(verbose Verbosity, out io.Writer, mode Mode, ctx context.Context) *SimpleContext {
+func NewContext(verbose int, out io.Writer, mode Mode, ctx context.Context) *SimpleContext {
 	c := &SimpleContext{verbose: verbose, mode: mode, Context: ctx, out: out}
 	c.data = make(map[string]interface{})
 	for _, cb := range onnews {
@@ -52,7 +50,7 @@ func NewContext(verbose Verbosity, out io.Writer, mode Mode, ctx context.Context
 }
 
 type SimpleContext struct {
-	verbose Verbosity
+	verbose int
 	mode    Mode
 	context.Context
 	e    string

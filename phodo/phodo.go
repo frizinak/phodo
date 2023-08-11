@@ -167,9 +167,8 @@ func Editor(ctx context.Context, c Conf, file string) error {
 		return nil
 	}
 
-	var cancel func()
-	ctx, cancel = context.WithCancel(ctx)
-	rctx := pipeline.NewContext(pipeline.Verbosity(c.Verbose), os.Stderr, pipeline.ModeEdit, ctx)
+	ictx, cancel := context.WithCancel(ctx)
+	rctx := pipeline.NewContext(c.Verbose, os.Stderr, pipeline.ModeEdit, ictx)
 	load := pipeline.New(
 		element.Once(element.LoadFile(c.inputFile)),
 	)
@@ -249,7 +248,7 @@ func Editor(ctx context.Context, c Conf, file string) error {
 	if err != nil {
 		return err
 	}
-	if c.Verbose >= int(pipeline.VerboseTime) {
+	if c.Verbose >= pipeline.VerboseTime {
 		print("Loading image", time.Since(s).Round(time.Millisecond).String())
 	}
 
@@ -320,9 +319,10 @@ outer:
 		r := pipeline.NewDecoder(f, c.vars)
 		if fullRefresh {
 			fullRefreshing = true
-			rctx = pipeline.NewContext(pipeline.Verbosity(c.Verbose), os.Stderr, pipeline.ModeEdit, ctx)
+			rctx = pipeline.NewContext(c.Verbose, os.Stderr, pipeline.ModeEdit, ictx)
 			res = nil
 		}
+
 		res, err = r.Decode(res)
 		f.Close()
 		if err != nil {
@@ -337,6 +337,7 @@ outer:
 			time.Sleep(tError)
 			continue
 		}
+
 		if e.Cached && !fullRefresh {
 			time.Sleep(tShort)
 			continue
@@ -367,7 +368,7 @@ outer:
 			fullRefresh = false
 		}
 
-		if c.Verbose >= int(pipeline.VerboseTime) {
+		if c.Verbose >= pipeline.VerboseTime {
 			print(l, time.Since(s).Round(time.Millisecond).String())
 		}
 	}
@@ -457,7 +458,7 @@ func runScript(ctx context.Context, c Conf, mode pipeline.Mode) error {
 		line.Add(element.SaveFile(c.outputFile, c.OutputExt, 92))
 	}
 
-	rctx := pipeline.NewContext(pipeline.Verbosity(c.Verbose), os.Stderr, mode, ctx)
+	rctx := pipeline.NewContext(c.Verbose, os.Stderr, mode, ctx)
 	_, err = line.Do(rctx, nil)
 
 	return err
