@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"image"
 
 	"github.com/frizinak/phodo/img48"
@@ -216,18 +217,36 @@ func DrawCircleSrc(src, dst *img48.Img, sp, dp image.Point, outerRadius, innerRa
 	d := 1.0 / (or2 - s*ir2)
 	o := s * ir2 / 4
 
-	sl, dl := len(src.Pix), len(dst.Pix)
+	sl := len(src.Pix)
 
-	for y := -outerRadius / 2; y < +outerRadius/2; y++ {
-		do_ := (dp.Y + y) * dst.Stride
+	for y := -outerRadius / 2; y < outerRadius/2; y++ {
+		ny := dp.Y + y - dst.Rect.Min.Y
+		if ny < dst.Rect.Min.Y {
+			continue
+		}
+		if ny >= dst.Rect.Max.Y {
+			break
+		}
+		do_ := ny * dst.Stride
 		so_ := (sp.Y + y) * src.Stride
-		for x := -outerRadius / 2; x < +outerRadius/2; x++ {
-			do := do_ + (dp.X+x)*3
+		for x := -outerRadius / 2; x < outerRadius/2; x++ {
+			nx := dp.X + x - dst.Rect.Min.X
+			if nx < dst.Rect.Min.X {
+				continue
+			}
+			if nx >= dst.Rect.Max.X {
+				break
+			}
+
+			do := do_ + nx*3
 			so := so_ + (sp.X+x)*3
-			if do < 0 || so < 0 || do >= dl || so >= sl {
+			if so < 0 || so >= sl {
 				continue
 			}
 
+			if do > len(dst.Pix) {
+				fmt.Println(nx, ny, dst.Rect)
+			}
 			dpix := dst.Pix[do : do+3 : do+3]
 			spix := src.Pix[so : so+3 : so+3]
 
