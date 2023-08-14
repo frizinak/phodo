@@ -64,7 +64,7 @@ func (x exif) Help() [][2]string {
 	case exifAllow:
 		return [][2]string{
 			{
-				fmt.Sprintf("%s([tag1] [tag2] ...[tagN]", x.Name()),
+				fmt.Sprintf("%s([tag1] [tag2] ...[tagN])", x.Name()),
 				"Deletes all tags not listed.",
 			},
 		}

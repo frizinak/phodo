@@ -212,17 +212,12 @@ func DenoiseChromaMedian(img *img48.Img, readRadius, writeRadius int, blend bool
 }
 
 func ycbcr(img *img48.Img) []int {
-	width, height := img.Rect.Dx(), img.Rect.Dy()
 	pix := make([]int, len(img.Pix))
-	for y := 0; y < height; y++ {
-		o_ := y * img.Stride
-		for x := 0; x < width; x++ {
-			o := o_ + x*3
-			r, g, b := int(img.Pix[o+0]), int(img.Pix[o+1]), int(img.Pix[o+2])
-			pix[o+0] = 19595*r + 38470*g + 7471*b
-			pix[o+1] = (-11056*r - 21712*g + 32768*b) >> 16
-			pix[o+2] = (32768*r - 27440*g - 5328*b) >> 16
-		}
+	for o := 0; o < len(img.Pix); o += 3 {
+		r, g, b := int(img.Pix[o+0]), int(img.Pix[o+1]), int(img.Pix[o+2])
+		pix[o+0] = 19595*r + 38470*g + 7471*b
+		pix[o+1] = (-11056*r - 21712*g + 32768*b) >> 16
+		pix[o+2] = (32768*r - 27440*g - 5328*b) >> 16
 	}
 
 	return pix

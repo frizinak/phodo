@@ -146,7 +146,7 @@ func (teeElement) Name() string { return "tee" }
 func (tee teeElement) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s([element1] [element2] ...[elementN]", tee.Name()),
+			fmt.Sprintf("%s([element1] [element2] ...[elementN])", tee.Name()),
 			"Creates a new pipeline branching of the main pipeline.",
 		},
 	}

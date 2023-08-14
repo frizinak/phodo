@@ -111,8 +111,9 @@ func Draw(src, dst *img48.Img, p image.Point, blender Blender) {
 func DrawRectangle(src Color, dst *img48.Img, rect image.Rectangle, width int) {
 	r, g, b := src.Color()
 	clr := []uint16{r, g, b}
+	w, h := dst.Rect.Dx(), dst.Rect.Dy()
 	ll := func(x, y int) {
-		if x >= dst.Rect.Min.X && y >= dst.Rect.Min.Y && x < dst.Rect.Max.X && y < dst.Rect.Max.Y {
+		if x >= 0 && y >= 0 && x < w && y < h {
 			o := y*dst.Stride + x*3
 			pix := dst.Pix[o : o+3 : o+3]
 			copy(pix, clr)
