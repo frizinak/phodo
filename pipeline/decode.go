@@ -390,7 +390,7 @@ func (e *entry) ElementDefault(def Element) Element {
 	ie, v := e.iface(def)
 	rv, ok := v.(Element)
 	if !ok {
-		err := fmt.Errorf("%T is not an Element", v)
+		err := fmt.Errorf("'%s' is not an Element", ie.Name())
 		if e.err == nil {
 			e.err = err
 		}
