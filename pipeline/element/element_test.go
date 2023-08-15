@@ -165,7 +165,7 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 		case rotate:
 			els = append(els, Rotate(1), Rotate(-8))
 		case clut:
-			els = append(els, CLUT(Load(bytes.NewReader(jpeg64x64)), 0.5))
+			els = append(els, CLUT(Load(bytes.NewReader(jpeg64x64)), 0.5, 1))
 		case canvas:
 			els = append(els, Canvas(0, 0))
 		case exif:
