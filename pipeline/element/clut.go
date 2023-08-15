@@ -13,33 +13,49 @@ func CLUT(e pipeline.Element, amount float64) pipeline.Element {
 }
 
 type clut struct {
+	slow   bool
 	e      pipeline.Element
 	amount pipeline.Value
 }
 
-func (clut) Name() string { return "clut" }
+func (c clut) Name() string {
+	if c.slow {
+		return "clut-slow"
+	}
+
+	return "clut"
+}
 
 func (c clut) Help() [][2]string {
+	if c.slow {
+		return [][2]string{
+			{
+				fmt.Sprintf("%s(<element>, <amount>)", c.Name()),
+				"Hald CLUT. Executes the given <element> and uses it as a color",
+			},
+			{
+				"",
+				"lookup table for the input image. <amount> [0-1] determines how",
+			},
+			{
+				"",
+				"much of the original color is interpolated with the clut color.",
+			},
+			{
+				"",
+				"Colors that don't exists in the lookup table are also interpolated.",
+			},
+		}
+	}
+
 	return [][2]string{
 		{
-			fmt.Sprintf("%s(<element>, <amount>)", c.Name()),
+			fmt.Sprintf("%s(<element>)", c.Name()),
 			"Hald CLUT. Executes the given <element> and uses it as a color",
 		},
 		{
 			"",
-			"lookup table for the input image. <amount> [0-1] determines how",
-		},
-		{
-			"",
-			"much of the original color is interpolated with the clut color.",
-		},
-		{
-			"",
-			"An amount of 1 results in the best performance as no values need",
-		},
-		{
-			"",
-			"to be interpolated.",
+			"lookup table for the input image. Nothing is interpolated.",
 		},
 	}
 }
@@ -69,10 +85,14 @@ func (c clut) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, pipeline.NewErrNeedImageInput(c.Name())
 	}
 
+	if !c.slow {
+		return img, core.CLUT(img, clut)
+	}
+
 	amount, err := c.amount.Float64(img)
 	if err != nil {
 		return img, err
 	}
 
-	return img, core.CLUT(img, clut, amount)
+	return img, core.CLUTSlow(img, clut, amount)
 }

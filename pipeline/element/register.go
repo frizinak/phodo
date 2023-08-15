@@ -27,7 +27,8 @@ func init() {
 	pipeline.Register(orient{})
 	pipeline.Register(rotate{})
 
-	pipeline.Register(clut{})
+	pipeline.Register(clut{slow: true})
+	pipeline.Register(clut{slow: false})
 
 	pipeline.Register(cpy{})
 	pipeline.Register(canvas{})
