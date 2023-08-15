@@ -19,7 +19,7 @@ func CLUT(img, clut *img48.Img, amount float64) error {
 	case 16:
 		CLUT16(img, clut, amount)
 	default:
-		return fmt.Errorf("invalid clut (level: %d, size: %dx%d)", lvl, clut.Rect.Dx(), clut.Rect.Dy())
+		return fmt.Errorf("unsupported clut (level: %d, size: %dx%d)", lvl, clut.Rect.Dx(), clut.Rect.Dy())
 	}
 
 	return nil
@@ -77,23 +77,17 @@ func CLUT16(img, clut *img48.Img, amount float64) {
 		hx := int(r%256 + (g%16)*256)
 		hy := int(b*16 + g/16)
 		v := hy*12288 + hx*3
-
 		ipol(pix, clut.Pix[v:v+3:v+3], amount)
 	}
 }
 
-func ipol(dpix, spix []uint16, am float64) {
+func ipol(dst, src []uint16, am float64) {
 	if am == 1 {
-		copy(dpix, spix)
-		return
+		copy(dst, src)
+	} else if am != 0 {
+		nam := 1 - am - 1e-12
+		dst[0] = uint16(float64(dst[0])*nam + float64(src[0])*am)
+		dst[1] = uint16(float64(dst[1])*nam + float64(src[1])*am)
+		dst[2] = uint16(float64(dst[2])*nam + float64(src[2])*am)
 	}
-
-	if am == 0 {
-		return
-	}
-
-	nam := 1 - am - 1e-12
-	dpix[0] = uint16(float64(dpix[0])*nam + float64(spix[0])*am)
-	dpix[1] = uint16(float64(dpix[1])*nam + float64(spix[1])*am)
-	dpix[2] = uint16(float64(dpix[2])*nam + float64(spix[2])*am)
 }
