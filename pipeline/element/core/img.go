@@ -93,10 +93,10 @@ func TempFile(file string) string {
 }
 
 func ImageDecode(r io.ReadSeeker, extHint string) (*img48.Img, error) {
-	return imageDecode(r, extHint, true)
+	return imageDecode(r, r, extHint, true)
 }
 
-func imageDecode(r io.ReadSeeker, extHint string, tryDCRAW bool) (*img48.Img, error) {
+func imageDecode(imageReader, exifReader io.ReadSeeker, extHint string, tryDCRAW bool) (*img48.Img, error) {
 	var _img image.Image
 	var err error
 	var typ string
@@ -112,34 +112,33 @@ func imageDecode(r io.ReadSeeker, extHint string, tryDCRAW bool) (*img48.Img, er
 	// TODO better faster stronger tiff decoder
 	forceDCRAW := false
 	switch extHint {
-	case ".nef":
+	case ".nef", ".raf":
 		forceDCRAW = true
 	}
 
 	if err != nil || _img == nil {
 		if read {
-			if _, err = r.Seek(0, io.SeekStart); err != nil {
+			if _, err = imageReader.Seek(0, io.SeekStart); err != nil {
 				return nil, err
 			}
 		}
 
 		if !forceDCRAW {
-			_img, typ, err = image.Decode(r)
+			_img, typ, err = image.Decode(imageReader)
 		}
 
 		if (err != nil || _img == nil) && tryDCRAW {
 			tmp := TempFile(filepath.Join(os.TempDir(), "phodo"))
 
 			{
-
-				if _, err = r.Seek(0, io.SeekStart); err != nil {
+				if _, err = imageReader.Seek(0, io.SeekStart); err != nil {
 					return nil, err
 				}
 				f, err := os.OpenFile(tmp, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 				if err != nil {
 					return nil, err
 				}
-				_, err = io.Copy(f, r)
+				_, err = io.Copy(f, imageReader)
 				f.Close()
 				defer os.Remove(tmp)
 				if err != nil {
@@ -153,6 +152,7 @@ func imageDecode(r io.ReadSeeker, extHint string, tryDCRAW bool) (*img48.Img, er
 				"-T",      // TIFF
 				"-w",      // Camera white balance
 				"-o", "1", // Colorspace: sRGB
+				"-t", "0", // Rotate 0 => ignores exif orientation (who wrote this...)
 				"-q", "0", // Interpolation: linear
 				"-H", "0", // Highliht mode: clip
 				tmp,
@@ -168,7 +168,7 @@ func imageDecode(r io.ReadSeeker, extHint string, tryDCRAW bool) (*img48.Img, er
 				return nil, err
 			}
 
-			img, err := imageDecode(f, ".tif", false)
+			img, err := imageDecode(f, exifReader, ".tif", false)
 
 			f.Close()
 			os.Remove(tif)
@@ -189,10 +189,10 @@ func imageDecode(r io.ReadSeeker, extHint string, tryDCRAW bool) (*img48.Img, er
 	}
 
 	if searchEXIF {
-		if _, err = r.Seek(0, io.SeekStart); err != nil {
+		if _, err = exifReader.Seek(0, io.SeekStart); err != nil {
 			return nil, err
 		}
-		exif, err = myexif.Read(r)
+		exif, err = myexif.Read(exifReader)
 		if err != nil && err != io.EOF && !errors.Is(err, myexif.ErrNoExif{}) {
 			return nil, err
 		}
