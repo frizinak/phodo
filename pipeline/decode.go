@@ -474,9 +474,10 @@ type NamedElement struct {
 }
 
 type Decoder struct {
-	r     *errReader
-	vars  map[string]string
-	state struct {
+	r       *errReader
+	vars    map[string]string
+	aliases map[string]string
+	state   struct {
 		nl      bool
 		decoded bool
 		err     error
@@ -484,9 +485,9 @@ type Decoder struct {
 	}
 }
 
-func NewDecoder(r io.Reader, vars map[string]string) *Decoder {
+func NewDecoder(r io.Reader, vars, aliases map[string]string) *Decoder {
 	rr := &errReader{r: bufio.NewReader(r)}
-	d := &Decoder{r: rr, vars: vars}
+	d := &Decoder{r: rr, vars: vars, aliases: aliases}
 	d.state.nl = true
 	return d
 }
@@ -534,7 +535,7 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 				return err
 			}
 
-			d := NewDecoder(f, d.vars)
+			d := NewDecoder(f, d.vars, d.aliases)
 			r, err := d.Decode(root)
 			f.Close()
 			if err != nil {
@@ -594,6 +595,11 @@ func (d *Decoder) Decode(cache *Root) (*Root, error) {
 		}
 
 		skel := decodables[id]
+		if skel == nil {
+			if alias, ok := d.aliases[id]; ok {
+				skel = decodables[alias]
+			}
+		}
 		if skel == nil {
 			return nil, fmt.Errorf("'%s' is not a defined element", name)
 		}

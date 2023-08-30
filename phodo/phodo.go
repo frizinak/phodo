@@ -33,9 +33,11 @@ type Conf struct {
 	Pipeline  string
 	Script    string
 	Vars      map[string]string
+	Aliases   map[string]string
 	OutputExt string
 
 	vars       map[string]string
+	aliases    map[string]string
 	pix        PixelReporter
 	out        io.Writer
 	inputFile  string
@@ -117,7 +119,54 @@ func (c Conf) Parse() (Conf, error) {
 		c.vars[k] = v
 	}
 
+	if c.aliases == nil {
+		var err error
+		c.aliases, err = c.parseAliases()
+		if err != nil {
+			return c, err
+		}
+	}
+
+	for k, v := range c.Aliases {
+		c.aliases[k] = v
+	}
+
 	return c, nil
+}
+
+func (c Conf) parseAliases() (map[string]string, error) {
+	m := make(map[string]string)
+	p := filepath.Join(c.confDir, "phodo", "aliases")
+	f, err := os.Open(p)
+	if os.IsNotExist(err) {
+		return m, nil
+	}
+	if err != nil {
+		return m, err
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	s.Split(bufio.ScanLines)
+	line := 0
+	for s.Scan() {
+		line++
+		t := strings.TrimSpace(s.Text())
+		if t == "" {
+			continue
+		}
+
+		p := strings.Fields(t)
+		if len(p) != 2 {
+			return m, fmt.Errorf("invalid systax on line %d: '%s'", line, t)
+		}
+		p1 := strings.TrimSpace(p[0])
+		p2 := strings.TrimSpace(p[1])
+
+		m[p1] = p2
+	}
+
+	return m, nil
 }
 
 func (c Conf) parseVars() (map[string]string, error) {
@@ -125,7 +174,7 @@ func (c Conf) parseVars() (map[string]string, error) {
 	p := filepath.Join(c.confDir, "phodo", "vars")
 	f, err := os.Open(p)
 	if os.IsNotExist(err) {
-		return c.Vars, nil
+		return m, nil
 	}
 	if err != nil {
 		return m, err
@@ -316,7 +365,7 @@ outer:
 			continue
 		}
 
-		r := pipeline.NewDecoder(f, c.vars)
+		r := pipeline.NewDecoder(f, c.vars, c.aliases)
 		if fullRefresh {
 			fullRefreshing = true
 			rctx = pipeline.NewContext(c.Verbose, os.Stderr, pipeline.ModeEdit, ictx)
@@ -420,7 +469,7 @@ func load(c Conf) (*pipeline.Root, error) {
 		return nil, fmt.Errorf("failed to open pipeline script: %s: '%w'", c.Script, err)
 	}
 
-	r := pipeline.NewDecoder(f, c.vars)
+	r := pipeline.NewDecoder(f, c.vars, c.aliases)
 	res, err := r.Decode(nil)
 	f.Close()
 
