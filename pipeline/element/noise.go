@@ -13,7 +13,7 @@ func DenoiseChroma(radius int) pipeline.Element {
 	return denoise{chroma: true, radius: pipeline.PlainNumber(radius)}
 }
 
-func DenoiseLuminance(radius int) pipeline.Element {
+func DenoiseLuma(radius int) pipeline.Element {
 	return denoise{chroma: false, radius: pipeline.PlainNumber(radius)}
 }
 
@@ -26,7 +26,8 @@ func (dn denoise) Name() string {
 	if dn.chroma {
 		return "denoise-chroma"
 	}
-	return "denoise-luminance"
+
+	return "denoise-luma"
 }
 
 func (denoise) Inline() bool { return true }
