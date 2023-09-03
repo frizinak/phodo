@@ -150,45 +150,43 @@ func cresize(src *img48.Img, dstb image.Rectangle, kernel draw.Kernel) *img48.Im
 func wresize(src, dst *img48.Img, sw, dw int, kernel draw.Kernel) {
 	contrib := gcontrib(sw, dw, kernel)
 
-	for y := src.Rect.Min.Y; y < src.Rect.Max.Y; y++ {
-		o_ := (y - src.Rect.Min.Y) * src.Stride
+	p48(src, func(pix []uint16, y int) {
 		for x := range contrib {
 			var r, g, b float64
 			for _, c := range contrib[x] {
-				o := o_ + c.i*3
-				s := src.Pix[o : o+3 : o+3]
+				o := c.i * 3
+				s := pix[o : o+3 : o+3]
 				r += float64(s[0]) * c.v
 				g += float64(s[1]) * c.v
 				b += float64(s[2]) * c.v
 			}
-			o := (y-src.Rect.Min.Y)*dst.Stride + x*3
+			o := y*dst.Stride + x*3
 			pix := dst.Pix[o : o+3 : o+3]
 			pix[0] = uint16(r)
 			pix[1] = uint16(g)
 			pix[2] = uint16(b)
 		}
-	}
+	})
 }
 
 func hresize(src, dst *img48.Img, sh, dh int, kernel draw.Kernel) {
 	contrib := gcontrib(sh, dh, kernel)
 
-	for x := src.Rect.Min.X; x < src.Rect.Max.X; x++ {
-		o_ := (x - src.Rect.Min.X) * 3
+	p48x(src, func(offset, x int) {
 		for y := range contrib {
 			var r, g, b float64
 			for _, c := range contrib[y] {
-				o := o_ + c.i*src.Stride
+				o := offset + c.i*src.Stride
 				s := src.Pix[o : o+3 : o+3]
 				r += float64(s[0]) * c.v
 				g += float64(s[1]) * c.v
 				b += float64(s[2]) * c.v
 			}
-			o := o_ + y*dst.Stride
+			o := offset + y*dst.Stride
 			pix := dst.Pix[o : o+3 : o+3]
 			pix[0] = uint16(r)
 			pix[1] = uint16(g)
 			pix[2] = uint16(b)
 		}
-	}
+	})
 }

@@ -34,59 +34,71 @@ func CLUT(img, clut *img48.Img, strength float64, iterations int) error {
 }
 
 func CLUT4(img, clut *img48.Img, strength float64) {
-	for o := 0; o < len(img.Pix); o += 3 {
-		pix := img.Pix[o : o+3 : o+3]
-		r := pix[0] / 4096
-		g := pix[1] / 4096
-		b := pix[2] / 4096
+	l := img.Stride // major performance impact
+	p48(img, func(rpix []uint16, _ int) {
+		for n := 0; n < l; n += 3 {
+			pix := rpix[n : n+3 : n+3]
+			r := pix[0] / 4096
+			g := pix[1] / 4096
+			b := pix[2] / 4096
 
-		hx := int(r%16 + (g%4)*16)
-		hy := int(b*4 + g/4)
-		v := hy*192 + hx*3
-		ipol(pix, clut.Pix[v:v+3:v+3], strength)
-	}
+			hx := int(r%16 + (g%4)*16)
+			hy := int(b*4 + g/4)
+			v := hy*192 + hx*3
+			ipol(pix, clut.Pix[v:v+3:v+3], strength)
+		}
+	})
 }
 
 func CLUT8(img, clut *img48.Img, strength float64) {
-	for o := 0; o < len(img.Pix); o += 3 {
-		pix := img.Pix[o : o+3 : o+3]
-		r := pix[0] / 1024
-		g := pix[1] / 1024
-		b := pix[2] / 1024
+	l := img.Stride // major performance impact
+	p48(img, func(rpix []uint16, _ int) {
+		for n := 0; n < l; n += 3 {
+			pix := rpix[n : n+3 : n+3]
+			r := pix[0] / 1024
+			g := pix[1] / 1024
+			b := pix[2] / 1024
 
-		hx := int((r % 64) + (g%8)*64)
-		hy := int(b*8 + g/8)
-		v := hy*1536 + hx*3
-		ipol(pix, clut.Pix[v:v+3:v+3], strength)
-	}
+			hx := int((r % 64) + (g%8)*64)
+			hy := int(b*8 + g/8)
+			v := hy*1536 + hx*3
+			ipol(pix, clut.Pix[v:v+3:v+3], strength)
+		}
+	})
 }
 
 func CLUT12(img, clut *img48.Img, strength float64) {
-	for o := 0; o < len(img.Pix); o += 3 {
-		pix := img.Pix[o : o+3 : o+3]
-		r := pix[0] / 456
-		g := pix[1] / 456
-		b := pix[2] / 456
+	l := img.Stride // major performance impact
+	p48(img, func(rpix []uint16, _ int) {
+		for n := 0; n < l; n += 3 {
+			pix := rpix[n : n+3 : n+3]
+			r := pix[0] / 456
+			g := pix[1] / 456
+			b := pix[2] / 456
 
-		hx := int(r%144 + (g%12)*144)
-		hy := int(b*12 + g/12)
-		v := hy*5184 + hx*3
-		ipol(pix, clut.Pix[v:v+3:v+3], strength)
-	}
+			hx := int(r%144 + (g%12)*144)
+			hy := int(b*12 + g/12)
+			v := hy*5184 + hx*3
+			ipol(pix, clut.Pix[v:v+3:v+3], strength)
+		}
+	})
 }
 
 func CLUT16(img, clut *img48.Img, strength float64) {
-	for o := 0; o < len(img.Pix); o += 3 {
-		pix := img.Pix[o : o+3 : o+3]
-		r := pix[0] / 256
-		g := pix[1] / 256
-		b := pix[2] / 256
+	l := img.Stride // major performance impact
+	p48(img, func(rpix []uint16, _ int) {
+		for n := 0; n < l; n += 3 {
+			pix := rpix[n : n+3 : n+3]
+			r := pix[0] / 256
+			g := pix[1] / 256
+			b := pix[2] / 256
 
-		hx := int(r%256 + (g%16)*256)
-		hy := int(b*16 + g/16)
-		v := hy*12288 + hx*3
-		ipol(pix, clut.Pix[v:v+3:v+3], strength)
-	}
+			hx := int(r%256 + (g%16)*256)
+			hy := int(b*16 + g/16)
+			v := hy*12288 + hx*3
+			ipol(pix, clut.Pix[v:v+3:v+3], strength)
+		}
+	})
 }
 
 func ipol(dst, src []uint16, strength float64) {
