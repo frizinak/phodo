@@ -10,6 +10,8 @@ import (
 
 func CorrectOrientation() pipeline.Element { return orient{} }
 func Rotate(n int) pipeline.Element        { return rotate{pipeline.PlainNumber(n)} }
+func HFlip() pipeline.Element              { return hflip{} }
+func VFlip() pipeline.Element              { return vflip{} }
 
 type orient struct{}
 
@@ -104,4 +106,60 @@ var rotations = map[int]int{
 	8: -1,
 	3: 2,
 	6: 1,
+}
+
+type hflip struct{}
+
+func (hflip) Name() string { return "hflip" }
+func (hflip) Inline() bool { return true }
+
+func (f hflip) Help() [][2]string {
+	return [][2]string{
+		{
+			fmt.Sprintf("%s()", f.Name()),
+			"Flips the image horizonally.",
+		},
+	}
+}
+
+func (f hflip) Encode(w pipeline.Writer) error                  { return nil }
+func (f hflip) Decode(rdr pipeline.Reader) (interface{}, error) { return f, nil }
+
+func (f hflip) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(f)
+
+	if img == nil {
+		return img, pipeline.NewErrNeedImageInput(f.Name())
+	}
+
+	core.ImageFlipHorizontal(img)
+	return img, nil
+}
+
+type vflip struct{}
+
+func (vflip) Name() string { return "vflip" }
+func (vflip) Inline() bool { return true }
+
+func (f vflip) Help() [][2]string {
+	return [][2]string{
+		{
+			fmt.Sprintf("%s()", f.Name()),
+			"Flips the image horizonally.",
+		},
+	}
+}
+
+func (f vflip) Encode(w pipeline.Writer) error                  { return nil }
+func (f vflip) Decode(rdr pipeline.Reader) (interface{}, error) { return f, nil }
+
+func (f vflip) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(f)
+
+	if img == nil {
+		return img, pipeline.NewErrNeedImageInput(f.Name())
+	}
+
+	core.ImageFlipVertical(img)
+	return img, nil
 }

@@ -246,6 +246,35 @@ func ImageEncode(w io.Writer, img *img48.Img, ext string, quality int) error {
 	return err
 }
 
+func ImageFlipHorizontal(img *img48.Img) {
+	w := img.Rect.Dx()
+	s := (w - 1) * 3
+	mid := w / 2 * 3
+	P48(img, func(pix []uint16, _ int) {
+		for o := 0; o < mid; o += 3 {
+			n := s - o
+			pix[o+0], pix[n+0] = pix[n+0], pix[o+0]
+			pix[o+1], pix[n+1] = pix[n+1], pix[o+1]
+			pix[o+2], pix[n+2] = pix[n+2], pix[o+2]
+		}
+	})
+}
+
+func ImageFlipVertical(img *img48.Img) {
+	h := img.Rect.Dy()
+	l := img.Stride
+	mid := h / 2
+	P48x(img, func(offset, x int) {
+		for y := 0; y < mid; y++ {
+			o := offset + y*l
+			n := (h-1-y)*img.Stride + x*3
+			img.Pix[o+0], img.Pix[n+0] = img.Pix[n+0], img.Pix[o+0]
+			img.Pix[o+1], img.Pix[n+1] = img.Pix[n+1], img.Pix[o+1]
+			img.Pix[o+2], img.Pix[n+2] = img.Pix[n+2], img.Pix[o+2]
+		}
+	})
+}
+
 // ImageRotate the given image <rotate> times clockwise.
 func ImageRotate(img *img48.Img, rotate int) *img48.Img {
 	rotate = rotate % 4

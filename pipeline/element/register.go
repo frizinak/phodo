@@ -26,6 +26,8 @@ func init() {
 
 	pipeline.Register(orient{})
 	pipeline.Register(rotate{})
+	pipeline.Register(hflip{})
+	pipeline.Register(vflip{})
 
 	pipeline.Register(clut{})
 
