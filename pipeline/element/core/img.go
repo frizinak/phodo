@@ -66,7 +66,7 @@ func ImageCopyDiscard(img *img48.Img) *img48.Img {
 	i := img48.New(r, img.Exif.Clone())
 
 	sd := i.Stride
-	p48(img, func(pix []uint16, y int) {
+	P48(img, func(pix []uint16, y int) {
 		do := y * sd
 		dpix := i.Pix[do : do+sd : do+sd]
 		copy(dpix, pix)
@@ -278,8 +278,8 @@ func ImageRotate(img *img48.Img, rotate int) *img48.Img {
 	r.Max.X, r.Max.Y = w, h
 	dst := img48.New(r, img.Exif)
 
-	l := img.Stride
-	p48(img, func(pix []uint16, y int) {
+	l := img.Rect.Dx() * 3
+	P48(img, func(pix []uint16, y int) {
 		x := 0
 		for so := 0; so < l; so += 3 {
 			dx, dy := norm(x, y)

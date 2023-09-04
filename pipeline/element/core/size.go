@@ -150,7 +150,7 @@ func cresize(src *img48.Img, dstb image.Rectangle, kernel draw.Kernel) *img48.Im
 func wresize(src, dst *img48.Img, sw, dw int, kernel draw.Kernel) {
 	contrib := gcontrib(sw, dw, kernel)
 
-	p48(src, func(pix []uint16, y int) {
+	P48(src, func(pix []uint16, y int) {
 		for x := range contrib {
 			var r, g, b float64
 			for _, c := range contrib[x] {
@@ -172,7 +172,7 @@ func wresize(src, dst *img48.Img, sw, dw int, kernel draw.Kernel) {
 func hresize(src, dst *img48.Img, sh, dh int, kernel draw.Kernel) {
 	contrib := gcontrib(sh, dh, kernel)
 
-	p48x(src, func(offset, x int) {
+	P48x(src, func(offset, x int) {
 		for y := range contrib {
 			var r, g, b float64
 			for _, c := range contrib[y] {

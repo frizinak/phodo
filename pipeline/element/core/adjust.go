@@ -68,8 +68,8 @@ func RGBMultiply(img *img48.Img, r, g, b float64, norm bool) {
 		b *= f
 	}
 
-	l := img.Stride
-	p48(img, func(pix []uint16, _ int) {
+	l := img.Rect.Dx() * 3
+	P48(img, func(pix []uint16, _ int) {
 		for o := 0; o < l; o += 3 {
 			pix[o+0] = mul(pix[o+0], r)
 			pix[o+1] = mul(pix[o+1], g)
@@ -79,8 +79,8 @@ func RGBMultiply(img *img48.Img, r, g, b float64, norm bool) {
 }
 
 func RGBAdd(img *img48.Img, r, g, b int) {
-	l := img.Stride
-	p48(img, func(pix []uint16, _ int) {
+	l := img.Rect.Dx() * 3
+	P48(img, func(pix []uint16, _ int) {
 		for o := 0; o < l; o += 3 {
 			pix[o+0] = add(pix[o+0], r)
 			pix[o+1] = add(pix[o+1], g)
@@ -91,8 +91,8 @@ func RGBAdd(img *img48.Img, r, g, b int) {
 
 func Saturation(img *img48.Img, n float64) {
 	factor := int(n * (1<<16 - 1))
-	l := img.Stride
-	p48(img, func(pix []uint16, _ int) {
+	l := img.Rect.Dx() * 3
+	P48(img, func(pix []uint16, _ int) {
 		for o := 0; o < l; o += 3 {
 			r, g, b := int(pix[o+0]), int(pix[o+1]), int(pix[o+2])
 			avg := (r + g + b) / 3

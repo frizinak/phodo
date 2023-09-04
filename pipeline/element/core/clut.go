@@ -34,8 +34,8 @@ func CLUT(img, clut *img48.Img, strength float64, iterations int) error {
 }
 
 func CLUT4(img, clut *img48.Img, strength float64) {
-	l := img.Stride // major performance impact
-	p48(img, func(rpix []uint16, _ int) {
+	l := img.Rect.Dx() * 3
+	P48(img, func(rpix []uint16, _ int) {
 		for n := 0; n < l; n += 3 {
 			pix := rpix[n : n+3 : n+3]
 			r := pix[0] / 4096
@@ -51,8 +51,8 @@ func CLUT4(img, clut *img48.Img, strength float64) {
 }
 
 func CLUT8(img, clut *img48.Img, strength float64) {
-	l := img.Stride // major performance impact
-	p48(img, func(rpix []uint16, _ int) {
+	l := img.Rect.Dx() * 3
+	P48(img, func(rpix []uint16, _ int) {
 		for n := 0; n < l; n += 3 {
 			pix := rpix[n : n+3 : n+3]
 			r := pix[0] / 1024
@@ -68,8 +68,8 @@ func CLUT8(img, clut *img48.Img, strength float64) {
 }
 
 func CLUT12(img, clut *img48.Img, strength float64) {
-	l := img.Stride // major performance impact
-	p48(img, func(rpix []uint16, _ int) {
+	l := img.Rect.Dx() * 3
+	P48(img, func(rpix []uint16, _ int) {
 		for n := 0; n < l; n += 3 {
 			pix := rpix[n : n+3 : n+3]
 			r := pix[0] / 456
@@ -85,8 +85,8 @@ func CLUT12(img, clut *img48.Img, strength float64) {
 }
 
 func CLUT16(img, clut *img48.Img, strength float64) {
-	l := img.Stride // major performance impact
-	p48(img, func(rpix []uint16, _ int) {
+	l := img.Rect.Dx() * 3
+	P48(img, func(rpix []uint16, _ int) {
 		for n := 0; n < l; n += 3 {
 			pix := rpix[n : n+3 : n+3]
 			r := pix[0] / 256

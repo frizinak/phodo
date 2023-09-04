@@ -81,31 +81,32 @@ func Draw(src, dst *img48.Img, p image.Point, blender Blender) {
 		}
 	}
 
-	for y := sr.Min.Y; y < sr.Max.Y; y++ {
+	w := sr.Dx()
+	dw, dh := dst.Rect.Dx(), dst.Rect.Dy()
+	P48(src, func(pix []uint16, y int) {
 		ny := y + p.Y
-		if ny < dst.Rect.Min.Y {
-			continue
+		if ny < 0 {
+			return
 		}
-		if ny >= dst.Rect.Max.Y {
-			break
+		if ny >= dh {
+			return
 		}
 
-		so_ := (y - sr.Min.Y) * src.Stride
-		do_ := (ny - sr.Min.Y) * dst.Stride
-		for x := sr.Min.X; x < sr.Max.X; x++ {
+		do_ := ny * dst.Stride
+		for x := 0; x < w; x++ {
 			nx := x + p.X
-			if nx < dst.Rect.Min.X {
+			if nx < 0 {
 				continue
 			}
-			if nx >= dst.Rect.Max.X {
+			if nx >= dw {
 				break
 			}
 
-			so := so_ + (x-sr.Min.X)*3
-			do := do_ + (nx-sr.Min.X)*3
-			blender(src.Pix[so:so+3:so+3], dst.Pix[do:do+3:do+3])
+			so := x * 3
+			do := do_ + nx*3
+			blender(pix[so:so+3:so+3], dst.Pix[do:do+3:do+3])
 		}
-	}
+	})
 }
 
 func DrawRectangle(src Color, dst *img48.Img, rect image.Rectangle, width int) {
@@ -298,11 +299,14 @@ func DrawClipping(src Color, dst *img48.Img, threshold float64, singleChannel bo
 		}
 	}
 
-	for o := 0; o < len(dst.Pix); o += 3 {
-		if check(dst.Pix[o+0], dst.Pix[o+1], dst.Pix[o+2]) {
-			copy(dst.Pix[o:o+3:o+3], clr)
+	l := dst.Rect.Dx() * 3
+	P48(dst, func(pix []uint16, _ int) {
+		for o := 0; o < l; o += 3 {
+			if check(dst.Pix[o+0], dst.Pix[o+1], dst.Pix[o+2]) {
+				copy(dst.Pix[o:o+3:o+3], clr)
+			}
 		}
-	}
+	})
 }
 
 func linehorizcb(dst *img48.Img, cb func(y int, pix []uint16)) func(x1, x2, y int) {

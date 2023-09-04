@@ -3,8 +3,8 @@ package core
 import "github.com/frizinak/phodo/img48"
 
 func LUT8(img *img48.Img, lut []uint8) {
-	l := img.Stride
-	p48(img, func(pix []uint16, _ int) {
+	l := img.Rect.Dx() * 3
+	P48(img, func(pix []uint16, _ int) {
 		for o := 0; o < l; o += 3 {
 			r := uint(pix[o+0])
 			g := uint(pix[o+1])
@@ -17,8 +17,8 @@ func LUT8(img *img48.Img, lut []uint8) {
 }
 
 func LUT16(img *img48.Img, lut []uint16) {
-	l := img.Stride
-	p48(img, func(pix []uint16, _ int) {
+	l := img.Rect.Dx() * 3
+	P48(img, func(pix []uint16, _ int) {
 		for o := 0; o < l; o += 3 {
 			pix[o+0] = lut[pix[o+0]]
 			pix[o+1] = lut[pix[o+1]]
