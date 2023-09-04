@@ -3,6 +3,8 @@ package element
 import (
 	"fmt"
 	"image"
+	"sort"
+	"strconv"
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
@@ -36,6 +38,14 @@ func Rectangle(x, y, w, h, border int, clr pipeline.ComplexValue) pipeline.Eleme
 		w: pipeline.PlainNumber(w), h: pipeline.PlainNumber(h),
 		b:   pipeline.PlainNumber(border),
 		clr: clr,
+	}
+}
+
+func Draw(x, y int, src pipeline.Element, blender core.Blender) pipeline.Element {
+	return draw{
+		Point:   Point{X: pipeline.PlainNumber(x), Y: pipeline.PlainNumber(y)},
+		el:      src,
+		blender: blender,
 	}
 }
 
@@ -337,4 +347,257 @@ func (e extend) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	core.Draw(img, dst, p, nil)
 
 	return dst, nil
+}
+
+type Point struct {
+	X, Y pipeline.Value
+}
+
+type draw struct {
+	Point
+	el        pipeline.Element
+	blendMode pipeline.Value
+	blender   core.Blender
+}
+
+func (draw) Name() string { return "draw" }
+func (draw) Inline() bool { return false }
+
+func (d draw) Help() [][2]string {
+	v := [][2]string{
+		{
+			fmt.Sprintf("%s(<x> <y> [blend mode] <src-element>)", d.Name()),
+			"Draws the src-element onto the current image at <x> <y>.",
+		},
+		{
+			"",
+			"<blend mode> can be a number (opacity) or one of:",
+		},
+	}
+
+	list := make([]string, 0, len(BlendModes)+1)
+	for k := range BlendModes {
+		list = append(list, string(k))
+	}
+	sort.Strings(list)
+
+	v = append(v, [2]string{"", fmt.Sprintf(" - %s", BlendNone)})
+	for _, k := range list {
+		v = append(v, [2]string{"", fmt.Sprintf(" - %s", k)})
+	}
+	return v
+}
+
+func (d draw) Encode(w pipeline.Writer) error {
+	w.Value(d.X)
+	w.Value(d.Y)
+	return w.Element(d.el)
+}
+
+func (d draw) Decode(r pipeline.Reader) (interface{}, error) {
+	d.X = r.Value()
+	d.Y = r.Value()
+	if r.Len() == 4 {
+		d.blendMode = r.Value()
+	}
+	d.el = r.Element()
+	return d, nil
+}
+
+func (d draw) bl(img *img48.Img) (core.Blender, error) {
+	blender := d.blender
+	if d.blendMode != nil {
+		v, err := d.blendMode.String(img)
+		if err != nil {
+			return blender, err
+		}
+
+		b := BlendNone
+		if v != "" {
+			b = BlendMode(v)
+		}
+
+		_blender, ok := BlendModes[b]
+		if !ok {
+			op, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return blender, fmt.Errorf("invalid blending mode '%s'", b)
+			}
+
+			_blender = core.BlendOpacity(op)
+		}
+
+		if blender != nil {
+			return core.Blend(_blender, blender), nil
+		}
+
+		blender = _blender
+	}
+
+	return blender, nil
+}
+
+func (p Point) Value(img *img48.Img) (image.Point, error) {
+	var pt image.Point
+	var err error
+	pt.X, err = p.X.Int(img)
+	if err != nil {
+		return pt, err
+	}
+	pt.Y, err = p.Y.Int(img)
+	return pt, err
+}
+
+func (d draw) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(d)
+
+	if img == nil {
+		return img, pipeline.NewErrNeedImageInput(d.Name())
+	}
+
+	pt, err := d.Point.Value(img)
+	if err != nil {
+		return img, err
+	}
+
+	src, err := d.el.Do(ctx, img)
+	if err != nil {
+		return img, err
+	}
+
+	blender, err := d.bl(img)
+	if err != nil {
+		return img, err
+	}
+
+	core.Draw(src, img, pt, blender)
+	return img, nil
+}
+
+type BlendMode string
+
+const (
+	BlendNone     BlendMode = "none"
+	BlendScreen   BlendMode = "screen"
+	BlendMultiply BlendMode = "multiply"
+	BlendOverlay  BlendMode = "overlay"
+	BlendDarken   BlendMode = "darken"
+	BlendLighten  BlendMode = "lighten"
+)
+
+var BlendModes = map[BlendMode]core.Blender{
+	BlendScreen:   core.BlendScreen,
+	BlendMultiply: core.BlendMultiply,
+	BlendOverlay:  core.BlendOverlay,
+	BlendDarken:   core.BlendDarken,
+	BlendLighten:  core.BlendLighten,
+}
+
+type drawKey struct {
+	draw
+	clr  pipeline.ComplexValue
+	fuzz pipeline.Value
+}
+
+func (drawKey) Name() string { return "draw-key" }
+func (drawKey) Inline() bool { return false }
+
+func (d drawKey) Help() [][2]string {
+	return [][2]string{
+		{
+			fmt.Sprintf("%s(<x> <y> <color> <fuzz> <src-element>)", d.Name()),
+			"Draws the src-element onto the current image at <x> <y> ignoring",
+		},
+		{
+			"",
+			"the given color within range <fuzz> [0-1].",
+		},
+	}
+}
+
+func (d drawKey) Encode(w pipeline.Writer) error {
+	w.Value(d.X)
+	w.Value(d.Y)
+	err := w.ComplexValue(d.clr)
+	if err != nil {
+		return err
+	}
+	w.Value(d.fuzz)
+	return w.Element(d.el)
+}
+
+func (d drawKey) Decode(r pipeline.Reader) (interface{}, error) {
+	d.X = r.Value()
+	d.Y = r.Value()
+	d.clr = r.ComplexValueDefault(RGB16(0, 0, 0))
+	d.fuzz = r.Value()
+	d.el = r.Element()
+	return d, nil
+}
+
+func (d drawKey) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	fuzz, err := d.fuzz.Float64(img)
+	if err != nil {
+		return img, err
+	}
+	_clr, err := d.clr.Value(img)
+	if err != nil {
+		return img, err
+	}
+	clr, ok := _clr.(core.Color)
+	if !ok {
+		return img, fmt.Errorf("element of type '%T' is not a Color", _clr)
+	}
+
+	d.draw.blender = core.BlendKey(clr, fuzz)
+	return d.draw.Do(ctx, img)
+}
+
+type drawMask struct {
+	draw
+	mask pipeline.Element
+}
+
+func (drawMask) Name() string { return "draw-mask" }
+func (drawMask) Inline() bool { return false }
+
+func (d drawMask) Help() [][2]string {
+	return [][2]string{
+		{
+			fmt.Sprintf("%s(<x> <y> <mask-element> <src-element>)", d.Name()),
+			"Draws the src-element onto the current image using the given",
+		},
+		{
+			"",
+			"mask element at <x> <y>.",
+		},
+	}
+}
+
+func (d drawMask) Encode(w pipeline.Writer) error {
+	w.Value(d.X)
+	w.Value(d.Y)
+	err := w.Element(d.mask)
+	if err != nil {
+		return err
+	}
+	return w.Element(d.el)
+}
+
+func (d drawMask) Decode(r pipeline.Reader) (interface{}, error) {
+	d.X = r.Value()
+	d.Y = r.Value()
+	d.mask = r.Element()
+	d.el = r.Element()
+	return d, nil
+}
+
+func (d drawMask) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	msk, err := d.mask.Do(ctx, img)
+	if err != nil {
+		return img, err
+	}
+
+	d.draw.blender = core.BlendMask(msk)
+	return d.draw.Do(ctx, img)
 }

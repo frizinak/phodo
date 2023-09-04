@@ -87,18 +87,15 @@ Almost fully integrated into [photos](https://github.com/frizinak/photos) (phodo
         save-file("data/thumb.jpg" 80)
         save(thumb)
     )
-    compose(
-        pos-alpha(50 50 (
-                load(histogram)
-            )
+    draw-key(
+        50 50 rgb(0 0 0) 0% (
+            load(histogram)
         )
     )
     .a-clut()
-    compose(
-        pos(50 250 load(thumb))
-        pos-alpha(50 475 histogram(rgb 300 150 5 2))
-        pos(50 675 load(eye))
-    )
+    draw(50 250 load(thumb))
+    draw-key(50 475 hex(#000) 0% histogram(rgb 300 150 5 2))
+    draw(50 675 load(eye))
     save-file("data/result.jpg")
 )
 ```

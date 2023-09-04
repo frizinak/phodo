@@ -273,11 +273,11 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 				Crop(200, 200, -500, -500),
 			)
 
-		case pos:
+		case draw, drawKey, drawMask:
 			els = append(
 				els,
-				NewPos(50, 50, "", Load(bytes.NewReader(jpeg64x64))),
-				NewPos(-50, 50, BlendLighten, Load(bytes.NewReader(jpeg64x64))),
+				Draw(50, 50, Load(bytes.NewReader(jpeg64x64)), core.BlendDarken),
+				Draw(-50, 50, Load(bytes.NewReader(jpeg64x64)), nil),
 			)
 		case HistogramElement:
 			els = append(

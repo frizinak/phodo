@@ -6,7 +6,7 @@ import (
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
 	"github.com/frizinak/phodo/pipeline/element/core"
-	"golang.org/x/image/draw"
+	xdraw "golang.org/x/image/draw"
 )
 
 const (
@@ -55,8 +55,8 @@ const (
 	KernelBox Kernel = "box"
 )
 
-var kernels = map[Kernel]draw.Kernel{
-	KernelBox: draw.Kernel{
+var kernels = map[Kernel]xdraw.Kernel{
+	KernelBox: xdraw.Kernel{
 		Support: 0.5,
 		At: func(n float64) float64 {
 			if n <= 0.5 && n >= -0.5 {
@@ -67,7 +67,7 @@ var kernels = map[Kernel]draw.Kernel{
 	},
 }
 
-func RegisterKernel(name Kernel, k draw.Kernel) {
+func RegisterKernel(name Kernel, k xdraw.Kernel) {
 	kernels[name] = k
 }
 

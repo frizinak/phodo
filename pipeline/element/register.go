@@ -83,8 +83,9 @@ func init() {
 
 	pipeline.Register(crop{})
 
-	pipeline.Register(compose{})
-	pipeline.Register(pos{})
+	pipeline.Register(draw{})
+	pipeline.Register(drawKey{})
+	pipeline.Register(drawMask{})
 
 	pipeline.Register(HistogramElement{})
 

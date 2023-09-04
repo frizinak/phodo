@@ -15,54 +15,127 @@ type SimpleColor struct{ R, G, B uint16 }
 
 func (s SimpleColor) Color() (uint16, uint16, uint16) { return s.R, s.G, s.B }
 
-type Blender func(src, dst []uint16)
+type Blender func(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16)
 
-func BlendScreen(src, dst []uint16) {
-	for n := 0; n < 3; n++ {
-		dst[n] = 0xffff - uint16((uint32(0xffff-src[n])*uint32(0xffff-dst[n]))>>16)
-	}
+func BlendScreen(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	r = 0xffff - uint16((uint32(0xffff-sr)*uint32(0xffff-dr))>>16)
+	g = 0xffff - uint16((uint32(0xffff-sg)*uint32(0xffff-dg))>>16)
+	b = 0xffff - uint16((uint32(0xffff-sb)*uint32(0xffff-db))>>16)
+	return
 }
 
-func BlendMultiply(src, dst []uint16) {
-	for n := 0; n < 3; n++ {
-		dst[n] = uint16((uint32(src[n]) * uint32(dst[n])) >> 16)
-	}
+func BlendMultiply(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	r = uint16((uint32(sr) * uint32(dr)) >> 16)
+	g = uint16((uint32(sg) * uint32(dg)) >> 16)
+	b = uint16((uint32(sb) * uint32(db)) >> 16)
+	return
 }
 
-func BlendOverlay(src, dst []uint16) {
-	for n := 0; n < 3; n++ {
-		if src[n] > 0x7fff {
-			dst[n] = 0xffff - uint16(uint32(0xffff-src[n])*uint32(0xffff-dst[n])>>15)
-			continue
+func BlendOverlay(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	c := func(s, d uint16) uint16 {
+		if s > 0x7fff {
+			return 0xffff - uint16(uint32(0xffff-s)*uint32(0xffff-d)>>15)
 		}
-
-		dst[n] = uint16((uint32(src[n]) * uint32(dst[n])) >> 15)
+		return uint16((uint32(s) * uint32(d)) >> 15)
 	}
+
+	r = c(sr, dr)
+	g = c(sg, dg)
+	b = c(sb, db)
+	return
 }
 
-func BlendDarken(src, dst []uint16) {
-	for n := 0; n < 3; n++ {
-		if src[n] < dst[n] {
-			dst[n] = src[n]
+func BlendDarken(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	c := func(s, d uint16) uint16 {
+		if s < d {
+			return s
 		}
+		return d
 	}
+
+	r = c(sr, dr)
+	g = c(sg, dg)
+	b = c(sb, db)
+	return
 }
 
-func BlendLighten(src, dst []uint16) {
-	for n := 0; n < 3; n++ {
-		if src[n] > dst[n] {
-			dst[n] = src[n]
+func BlendLighten(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	c := func(s, d uint16) uint16 {
+		if s > d {
+			return s
 		}
+		return d
 	}
+
+	r = c(sr, dr)
+	g = c(sg, dg)
+	b = c(sb, db)
+	return
 }
 
 func BlendOpacity(opacity float64) Blender {
 	d := uint32((1<<16 - 1) * opacity)
 	id := (1<<16 - 1) - d
-	return func(src, dst []uint16) {
-		for n := 0; n < 3; n++ {
-			dst[n] = uint16((d*uint32(src[n]) + id*uint32(dst[n])) >> 16)
+	return func(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+		r = uint16((d*uint32(sr) + id*uint32(dr)) >> 16)
+		g = uint16((d*uint32(sg) + id*uint32(dg)) >> 16)
+		b = uint16((d*uint32(sb) + id*uint32(db)) >> 16)
+		return
+	}
+}
+
+func blendCopy(_, _ int, _, _ int, sr, sg, sb uint16, _, _, _ uint16) (r, g, b uint16) {
+	return sr, sg, sb
+}
+
+func BlendMask(mask *img48.Img) Blender {
+	w, h := mask.Rect.Dx(), mask.Rect.Dy()
+
+	c := func(mask uint16, s, d uint16) uint16 {
+		k := uint32(mask)
+		l := 1<<16 - 1 - k
+		return uint16((uint32(s)*k + uint32(d)*l) >> 16)
+	}
+
+	return func(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+		if sx < 0 || sy < 0 || sx >= w || sy >= h {
+			return dr, dg, db
 		}
+		o := sy*mask.Stride + sx*3
+		msk := mask.Pix[o : o+3 : o+3]
+
+		r = c(msk[0], sr, dr)
+		g = c(msk[1], sg, dg)
+		b = c(msk[2], sb, db)
+
+		return
+	}
+}
+
+func BlendKey(key Color, fuzz float64) Blender {
+	_kr, _kg, _kb := key.Color()
+	kr, kg, kb := int(_kr), int(_kg), int(_kb)
+	f := int(fuzz * (1<<16 - 1))
+	krMin, krMax := intClampUint16(kr-f), intClampUint16(kr+f)
+	kgMin, kgMax := intClampUint16(kg-f), intClampUint16(kg+f)
+	kbMin, kbMax := intClampUint16(kb-f), intClampUint16(kb+f)
+	return func(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+		r, g, b = sr, sg, sb
+		if r >= krMin && r <= krMax && g >= kgMin && g <= kgMax && b >= kbMin && b <= kbMax {
+			r, g, b = dr, dg, db
+		}
+
+		return
+	}
+}
+
+func Blend(blend ...Blender) Blender {
+	return func(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+		r, g, b = sr, sg, sb
+		for _, bl := range blend {
+			r, g, b = bl(sx, sy, dx, dy, r, g, b, dr, dg, db)
+		}
+		return
 	}
 }
 
@@ -76,9 +149,7 @@ func Draw(src, dst *img48.Img, p image.Point, blender Blender) {
 	}
 
 	if blender == nil {
-		blender = func(src, dst []uint16) {
-			copy(dst, src)
-		}
+		blender = blendCopy
 	}
 
 	w := sr.Dx()
@@ -104,7 +175,14 @@ func Draw(src, dst *img48.Img, p image.Point, blender Blender) {
 
 			so := x * 3
 			do := do_ + nx*3
-			blender(pix[so:so+3:so+3], dst.Pix[do:do+3:do+3])
+			spix := pix[so : so+3 : so+3]
+			dpix := dst.Pix[do : do+3 : do+3]
+			dpix[0], dpix[1], dpix[2] = blender(
+				x, y,
+				nx, ny,
+				spix[0], spix[1], spix[2],
+				dpix[0], dpix[1], dpix[2],
+			)
 		}
 	})
 }
