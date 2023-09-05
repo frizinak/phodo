@@ -216,91 +216,6 @@ func Editor(ctx context.Context, c Conf, file string) error {
 		return nil
 	}
 
-	ictx, cancel := context.WithCancel(ctx)
-	rctx := pipeline.NewContext(c.Verbose, os.Stderr, pipeline.ModeEdit, ictx)
-	load := pipeline.New(
-		element.Once(element.LoadFile(c.inputFile)),
-	)
-
-	print := func(left, right string) {
-		rctx.PrintAlert("%-39s %38s", left, right)
-	}
-
-	quit := make(chan struct{})
-	exit := func() {
-		cancel()
-		quit <- struct{}{}
-	}
-
-	var fullRefresh bool
-
-	var img *img48.Img
-	v := &edit.Viewer{}
-	var conf edit.Config
-	conf.OnKey = func(r rune) {
-		switch r {
-		case 'q':
-			exit()
-		case 'r':
-			fullRefresh = true
-		}
-	}
-
-	conf.OnClick = func(x, y int) {
-		if img == nil {
-			return
-		}
-		r, g, b, _ := img.At(x, y).RGBA()
-		c.pix(x, y, uint16(r), uint16(g), uint16(b))
-	}
-
-	var gerr error
-	done := make(chan struct{}, 1)
-	go func() {
-		if err := v.Run(conf, quit); err != nil {
-			gerr = err
-		}
-		done <- struct{}{}
-	}()
-
-	var res *pipeline.Root
-
-	tShort := time.Millisecond * 20
-	tError := time.Millisecond * 1000
-
-	var fullRefreshing bool
-
-	var cmd *exec.Cmd
-	{
-		editArgs := make([]string, len(c.Editor))
-		added := false
-		for i, v := range c.Editor {
-			if v == "{}" {
-				added = true
-				v = c.Script
-			}
-			editArgs[i] = v
-		}
-		if len(editArgs) != 0 {
-			if !added {
-				editArgs = append(editArgs, c.Script)
-			}
-			cmd = exec.Command(editArgs[0], editArgs[1:]...)
-			cmd.Stdin = os.Stdin
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-		}
-	}
-
-	s := time.Now()
-	_, err = load.Do(rctx, nil)
-	if err != nil {
-		return err
-	}
-	if c.Verbose >= pipeline.VerboseTime {
-		print("Loading image", time.Since(s).Round(time.Millisecond).String())
-	}
-
 	{
 		s, err := os.Stat(c.Script)
 		if os.IsNotExist(err) {
@@ -327,7 +242,66 @@ func Editor(ctx context.Context, c Conf, file string) error {
 		}
 	}
 
-	editDone := make(chan struct{}, 1)
+	var fullRefresh bool
+	var fullRefreshing bool
+	var img *img48.Img
+
+	var exit func()
+	ctx, exit = context.WithCancel(ctx)
+
+	v := &edit.Viewer{}
+	var conf edit.Config
+	conf.OnKey = func(r rune) {
+		switch r {
+		case 'q':
+			exit()
+		case 'r':
+			fullRefresh = true
+		}
+	}
+
+	conf.OnClick = func(x, y int) {
+		if img == nil {
+			return
+		}
+		r, g, b, _ := img.At(x, y).RGBA()
+		c.pix(x, y, uint16(r), uint16(g), uint16(b))
+	}
+
+	var gerr error
+	done := make(chan struct{}, 1)
+	quit := make(chan struct{})
+	spawned := make(chan struct{}, 1)
+	go func() {
+		if err := v.Run(conf, quit, spawned); err != nil {
+			gerr = err
+		}
+		done <- struct{}{}
+	}()
+
+	var cmd *exec.Cmd
+	{
+		editArgs := make([]string, len(c.Editor))
+		added := false
+		for i, v := range c.Editor {
+			if v == "{}" {
+				added = true
+				v = c.Script
+			}
+			editArgs[i] = v
+		}
+		if len(editArgs) != 0 {
+			if !added {
+				editArgs = append(editArgs, c.Script)
+			}
+			cmd = exec.Command(editArgs[0], editArgs[1:]...)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+		}
+	}
+
+	<-spawned
 	if cmd != nil {
 		if err := cmd.Start(); err != nil {
 			return err
@@ -337,92 +311,162 @@ func Editor(ctx context.Context, c Conf, file string) error {
 			if err := cmd.Wait(); err != nil && gerr == nil {
 				gerr = err
 			}
-			editDone <- struct{}{}
+			exit()
 		}()
 	}
 
-outer:
+	load := pipeline.New(
+		element.Once(element.LoadFile(c.inputFile)),
+	)
+
+	tShort := time.Millisecond * 20
+	tError := time.Millisecond * 1000
+
+	var cancel func()
+	rctx := pipeline.NewContext(c.Verbose, os.Stderr, pipeline.ModeEdit, context.Background())
+	newCtx := func() {
+		ictx, cncl := context.WithCancel(ctx)
+		rctx.Context, cancel = ictx, cncl
+	}
+	newCtx()
+
+	print := func(left, right string) {
+		rctx.PrintAlert("%-39s %38s", left, right)
+	}
+
+	tick := make(chan struct{})
+	go func() {
+		var res *pipeline.Root
+		for range tick {
+			if rctx.Err() == context.Canceled {
+				newCtx()
+			}
+
+			s := time.Now()
+			f, err := os.Open(c.Script)
+			if err != nil {
+				fmt.Fprintln(c.out, err)
+				time.Sleep(tError)
+				continue
+			}
+
+			if fullRefresh {
+				fullRefreshing = true
+				rctx = pipeline.NewContext(c.Verbose, os.Stderr, pipeline.ModeEdit, context.Background())
+				newCtx()
+				res = nil
+			}
+
+			res, err = pipeline.NewDecoder(f, c.vars, c.aliases).Decode(res)
+			f.Close()
+			if err != nil {
+				fmt.Fprintln(c.out, err)
+				time.Sleep(tError)
+				continue
+			}
+
+			e, ok := res.Get(string(pipeline.NamedPrefix) + c.Pipeline)
+			if !ok {
+				fmt.Fprintf(c.out, "no pipeline named '%s'\n", c.Pipeline)
+				time.Sleep(tError)
+				continue
+			}
+
+			if e.Cached && !fullRefresh {
+				time.Sleep(tShort)
+				continue
+			}
+
+			out, err := pipeline.New(
+				load,
+				e.Element,
+			).Do(rctx, nil)
+
+			l := "Render"
+			if fullRefreshing {
+				l = "Render (no cache)"
+				fullRefreshing = false
+				fullRefresh = false
+			}
+
+			if err == context.Canceled {
+				continue
+			}
+
+			if err != nil {
+				fmt.Fprintln(c.out, err)
+				time.Sleep(tError)
+				continue
+			}
+
+			img = core.ImageDiscard(out)
+			v.Set(img)
+
+			if c.Verbose >= pipeline.VerboseTime {
+				print(l, time.Since(s).Round(time.Millisecond).String())
+			}
+		}
+	}()
+
+	s := time.Now()
+	_, err = load.Do(rctx, nil)
+	if err != nil {
+		return err
+	}
+	if c.Verbose >= pipeline.VerboseTime {
+		print("Loading image", time.Since(s).Round(time.Millisecond).String())
+	}
+
+	var lastMod time.Time
 	for {
-		select {
-		case <-done:
-			if cmd != nil && cmd.Process != nil {
-				cmd.Process.Signal(syscall.SIGTERM)
+		if err := ctx.Err(); err != nil {
+			close(tick)
+			if err == context.Canceled {
+				break
 			}
-			break outer
-		case <-editDone:
-			exit()
-		default:
+
+			gerr = err
+			break
 		}
 
-		s := time.Now()
-		f, err := os.Open(c.Script)
-		if err != nil {
-			if os.IsNotExist(err) {
-				err = fmt.Errorf("failed to open pipeline script: %s", c.Script)
-			}
-			fmt.Fprintln(c.out, err)
-			time.Sleep(tError)
-			continue
-		}
-
-		r := pipeline.NewDecoder(f, c.vars, c.aliases)
-		if fullRefresh {
-			fullRefreshing = true
-			rctx = pipeline.NewContext(c.Verbose, os.Stderr, pipeline.ModeEdit, ictx)
-			res = nil
-		}
-
-		res, err = r.Decode(res)
-		f.Close()
+		s, err := os.Stat(c.Script)
 		if err != nil {
 			fmt.Fprintln(c.out, err)
 			time.Sleep(tError)
 			continue
 		}
 
-		e, ok := res.Get(string(pipeline.NamedPrefix) + c.Pipeline)
-		if !ok {
-			fmt.Fprintf(c.out, "no pipeline named '%s'\n", c.Pipeline)
-			time.Sleep(tError)
-			continue
-		}
-
-		if e.Cached && !fullRefresh {
+		mod := s.ModTime()
+		if !fullRefresh && !mod.After(lastMod) {
 			time.Sleep(tShort)
 			continue
 		}
+		lastMod = mod
 
-		out, err := pipeline.New(
-			load,
-			e.Element,
-		).Do(rctx, nil)
-
-		if err == context.Canceled {
-			continue
+		ok := false
+		select {
+		case tick <- struct{}{}:
+			ok = true
+		default:
+			cancel()
 		}
-
-		if err != nil {
-			fmt.Fprintln(c.out, err)
-			time.Sleep(tError)
-			continue
+		if !ok {
+			tick <- struct{}{}
 		}
-
-		img = core.ImageDiscard(out)
-		v.Set(img)
-
-		l := "Render"
-		if fullRefreshing {
-			l = "Render (no cache)"
-			fullRefreshing = false
-			fullRefresh = false
-		}
-
-		if c.Verbose >= pipeline.VerboseTime {
-			print(l, time.Since(s).Round(time.Millisecond).String())
+		for fullRefresh || fullRefreshing {
+			time.Sleep(tShort)
 		}
 	}
 
-	return gerr
+	// ignore errors after this point
+	err = gerr
+	quit <- struct{}{}
+	if cmd != nil && cmd.Process != nil {
+		_ = cmd.Process.Signal(syscall.SIGTERM)
+	}
+	<-done
+
+	return err
 }
 
 func Convert(ctx context.Context, c Conf, input, output string) error {

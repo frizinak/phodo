@@ -18,7 +18,7 @@ func (v *Viewer) Set(img *img48.Img) {
 	v.sem.Unlock()
 }
 
-func (v *Viewer) Run(c Config, exit <-chan struct{}) error {
+func (v *Viewer) Run(c Config, exit <-chan struct{}, spawned chan<- struct{}) error {
 	go func() {
 		<-exit
 		v.window.SetShouldClose(true)
@@ -26,7 +26,7 @@ func (v *Viewer) Run(c Config, exit <-chan struct{}) error {
 
 	v.c = c
 
-	return v.run()
+	return v.run(spawned)
 }
 
 func Destroy(destroyGLFW bool) {

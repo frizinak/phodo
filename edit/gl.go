@@ -244,7 +244,7 @@ func (v *Viewer) onResize(wnd *glfw.Window, width, height int) {
 	}
 }
 
-func (v *Viewer) run() error {
+func (v *Viewer) run(spawned chan<- struct{}) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -415,6 +415,7 @@ func (v *Viewer) run() error {
 		return nil
 	}
 
+	spawned <- struct{}{}
 	for !v.window.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		if err = frame(); err != nil {
