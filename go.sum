@@ -1,5 +1,7 @@
 github.com/Andeling/tiff v0.0.0-20200203003012-f6e011e4b554 h1:0VZXvoJfVIy5bhBJi+rzuZoGldEiTzJKEwd/DfcQjn0=
 github.com/Andeling/tiff v0.0.0-20200203003012-f6e011e4b554/go.mod h1:6gTTE2pNYZRjtVNwx6EqxCeOP87CHTcNWkBVOSeEBVw=
+github.com/frizinak/version v0.1.1 h1:fP/201u3sDI2+En01wK+9Ymtq7uLbROGDkDm2FEpFtE=
+github.com/frizinak/version v0.1.1/go.mod h1:6H3Ze6VCg1n8wP4wX1dyV3kYn6bLNbh3f2U5YuMbOvw=
 github.com/go-gl/gl v0.0.0-20211210172815-726fda9656d6 h1:zDw5v7qm4yH7N8C8uWd+8Ii9rROdgWxQuGoJ9WDXxfk=
 github.com/go-gl/gl v0.0.0-20211210172815-726fda9656d6/go.mod h1:9YTyiznxEY1fVinfM7RvRcjRHbw2xLBJ3AAGIT0I4Nw=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20221017161538-93cebf72946b h1:GgabKamyOYguHqHjSkDACcgoPIz3w0Dis/zJ1wyHHHU=

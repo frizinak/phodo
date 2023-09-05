@@ -13,6 +13,7 @@ import (
 	"github.com/frizinak/phodo/flags"
 	"github.com/frizinak/phodo/phodo"
 	"github.com/frizinak/phodo/pipeline"
+	"github.com/frizinak/version"
 
 	_ "github.com/frizinak/phodo/pipeline/element"
 )
@@ -121,6 +122,7 @@ func main() {
 			fmt.Fprintln(w, "  script")
 			fmt.Fprintln(w, "  list")
 			fmt.Fprintln(w, "  format")
+			fmt.Fprintln(w, "  version")
 		}
 	}).Handler(func(set *flags.Set, args []string) error {
 		set.Usage(1)
@@ -201,7 +203,7 @@ func main() {
 		}).Handler(func(set *flags.Set, args []string) error {
 			for _, d := range pipeline.Registered() {
 				for _, line := range d.Help() {
-					fmt.Printf("%-60s %s\n", line[0], line[1])
+					fmt.Printf(" %-60s %s\n", line[0], line[1])
 				}
 				fmt.Println()
 			}
@@ -223,6 +225,19 @@ func main() {
 		}
 	}).Handler(func(set *flags.Set, args []string) error {
 		return handleFormat(c, args)
+	})
+
+	fr.Add("version").Define(func(set *flag.FlagSet) func(io.Writer) {
+		flagScript(set)
+
+		return func(w io.Writer) {
+			fmt.Fprintln(w, "Print binary version to stdout")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "phodo version")
+		}
+	}).Handler(func(set *flags.Set, args []string) error {
+		fmt.Println(version.Get())
+		return nil
 	})
 
 	set, _ := fr.ParseCommandline()
