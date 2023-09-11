@@ -380,8 +380,8 @@ func DrawClipping(src Color, dst *img48.Img, threshold float64, singleChannel bo
 	l := dst.Rect.Dx() * 3
 	P48(dst, func(pix []uint16, _ int) {
 		for o := 0; o < l; o += 3 {
-			if check(dst.Pix[o+0], dst.Pix[o+1], dst.Pix[o+2]) {
-				copy(dst.Pix[o:o+3:o+3], clr)
+			if check(pix[o+0], pix[o+1], pix[o+2]) {
+				copy(pix[o:o+3:o+3], clr)
 			}
 		}
 	})
