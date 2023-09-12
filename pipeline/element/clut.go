@@ -8,22 +8,32 @@ import (
 	"github.com/frizinak/phodo/pipeline/element/core"
 )
 
-func CLUT(e pipeline.Element, strength float64, iterations int) pipeline.Element {
-	return clut{e: e, strength: pipeline.PlainNumber(strength), iterations: pipeline.PlainNumber(iterations)}
+const (
+	InterpolationNearest   = "nearest"
+	InterpolationTrilinear = "trilinear"
+)
+
+var clutInterpolations = []string{
+	InterpolationNearest,
+	InterpolationTrilinear,
+}
+
+func CLUT(e pipeline.Element, strength float64, interpolation string) pipeline.Element {
+	return clut{e: e, strength: pipeline.PlainNumber(strength), interp: pipeline.PlainString(interpolation)}
 }
 
 type clut struct {
-	e          pipeline.Element
-	iterations pipeline.Value
-	strength   pipeline.Value
+	e        pipeline.Element
+	strength pipeline.Value
+	interp   pipeline.Value
 }
 
-func (clut) Name() string { return "clut" }
+func (c clut) Name() string { return "clut" }
 
 func (c clut) Help() [][2]string {
-	return [][2]string{
+	help := [][2]string{
 		{
-			fmt.Sprintf("%s(<element> [strength] [iterations])", c.Name()),
+			fmt.Sprintf("%s(<element> [strength] [interpolation])", c.Name()),
 			"Hald CLUT. Executes the given <element> and uses it as a color",
 		},
 		{
@@ -34,20 +44,34 @@ func (c clut) Help() [][2]string {
 			"",
 			"much of the original color is interpolated with the clut color.",
 		},
+		{
+			"",
+			"<interpolation> can be one of:",
+		},
 	}
+
+	l := make([]string, 0, len(clutInterpolations))
+	for _, o := range clutInterpolations {
+		l = append(l, o)
+	}
+	for _, t := range l {
+		help = append(help, [2]string{"", " - " + t})
+	}
+
+	return help
 }
 
 func (c clut) Encode(w pipeline.Writer) error {
 	err := w.Element(c.e)
 	w.Value(c.strength)
-	w.Value(c.iterations)
+	w.Value(c.interp)
 	return err
 }
 
 func (c clut) Decode(r pipeline.Reader) (interface{}, error) {
 	c.e = r.Element()
 	c.strength = r.ValueDefault(pipeline.PlainNumber(1))
-	c.iterations = r.ValueDefault(pipeline.PlainNumber(1))
+	c.interp = r.ValueDefault(pipeline.PlainString(InterpolationTrilinear))
 
 	return c, nil
 }
@@ -69,10 +93,12 @@ func (c clut) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		return img, err
 	}
 
-	iterations, err := c.iterations.Int(img)
+	interp, err := c.interp.String(img)
 	if err != nil {
 		return img, err
 	}
 
-	return img, core.CLUT(img, clut, strength, iterations)
+	interpolate := interp != InterpolationNearest
+
+	return img, core.CLUT(img, clut, strength, interpolate)
 }
