@@ -19,18 +19,19 @@ func cacheContainer(ctx pipeline.Context) *CacheContainer {
 
 func Once(els ...pipeline.Element) pipeline.Element {
 	return cache{
-		container: NewCacheContainer(10),
+		container: NewCacheContainer(1024 * 1024 * 1024),
 		hash:      dummyHash{make([]byte, 1)},
 		p:         pipeline.New(els...),
 	}
 }
 
 type CacheContainer struct {
-	max int
-	l   map[string]*cacheEntry
+	max  uint64
+	size uint64
+	l    map[string]*cacheEntry
 }
 
-func NewCacheContainer(max int) *CacheContainer {
+func NewCacheContainer(max uint64) *CacheContainer {
 	return &CacheContainer{max: max, l: make(map[string]*cacheEntry)}
 }
 
@@ -50,36 +51,59 @@ func (c *CacheContainer) Get(sum []byte) (*img48.Img, bool) {
 }
 
 func (c *CacheContainer) Set(sum []byte, img *img48.Img) {
-	c.l[string(sum)] = &cacheEntry{
+	e := &cacheEntry{
 		access: time.Now(),
 		sum:    sum,
 		Img:    img,
 	}
 
+	k := string(sum)
+
+	if e, ok := c.l[k]; ok {
+		c.size -= e.Size()
+	}
+
+	size := e.Size()
+	if size > c.max {
+		return
+	}
+
+	c.size += size
+	c.l[k] = e
+
 	c.Cleanup()
 }
 
 func (c *CacheContainer) Cleanup() {
-	if len(c.l) <= c.max {
+	if c.size <= c.max {
 		return
 	}
+
 	list := make([]*cacheEntry, 0, len(c.l))
 	for _, i := range c.l {
 		list = append(list, i)
 	}
 	sort.Slice(list, func(i, j int) bool {
-		return list[i].access.Before(list[j].access)
+		return list[j].access.Before(list[i].access)
 	})
 
-	m := make(map[string]*cacheEntry, c.max)
-	for i := 0; i < c.max; i++ {
-		m[string(list[i].sum)] = list[i]
+	m := make(map[string]*cacheEntry, len(c.l))
+	var size uint64
+	ix := 0
+	for size < c.max {
+		e := list[ix]
+		m[string(e.sum)] = e
+		size += e.Size()
+		ix++
 	}
+
+	c.size = size
 	c.l = m
 }
 
 func (c *CacheContainer) Clear() {
 	c.l = make(map[string]*cacheEntry)
+	c.size = 0
 }
 
 type dummyHash struct {
@@ -93,6 +117,8 @@ type cacheEntry struct {
 	sum    []byte
 	*img48.Img
 }
+
+func (c cacheEntry) Size() uint64 { return uint64(len(c.Img.Pix)) * 2 }
 
 type cache struct {
 	container *CacheContainer

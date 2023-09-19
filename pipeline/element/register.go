@@ -9,7 +9,7 @@ import (
 func init() {
 	pipeline.RegisterNewContextHandler(func(ctx pipeline.Context) {
 		ctx.Set(StateStorageName, NewStateContainer())
-		ctx.Set(CacheStorageName, NewCacheContainer(100))
+		ctx.Set(CacheStorageName, NewCacheContainer(8*1024*1024*1024))
 
 		_, err := TTFFont(FontGoBold, gobold.TTF).Do(ctx, nil)
 		if err != nil {
