@@ -2,14 +2,15 @@ package element
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/frizinak/phodo/img48"
 	"github.com/frizinak/phodo/pipeline"
 )
 
 type calc struct {
-	print bool
-	calc  pipeline.Value
+	print  bool
+	values []pipeline.Value
 }
 
 func (c calc) Name() string {
@@ -24,8 +25,8 @@ func (c calc) Help() [][2]string {
 	if c.print {
 		return [][2]string{
 			{
-				fmt.Sprintf("%s(`<anko expr>`)", c.Name()),
-				"Executes an arbitrary anko script a prints the result.",
+				fmt.Sprintf("%s(`[anko expr1]` `[anko expr2]` ...`[anko exprN]`)", c.Name()),
+				"Executes arbitrary anko scripts and prints the result.",
 			},
 		}
 	}
@@ -33,7 +34,7 @@ func (c calc) Help() [][2]string {
 	return [][2]string{
 		{
 			fmt.Sprintf("%s(`<anko expr>`)", c.Name()),
-			"Executes an arbitrary anko calculation.",
+			"Executes arbitrary anko scripts.",
 		},
 		{
 			"",
@@ -43,22 +44,42 @@ func (c calc) Help() [][2]string {
 }
 
 func (c calc) Encode(w pipeline.Writer) error {
-	w.Value(c.calc)
+	for _, c := range c.values {
+		w.Value(c)
+	}
 	return nil
 }
 
 func (c calc) Decode(r pipeline.Reader) (interface{}, error) {
-	c.calc = r.Value()
+	l := r.Len()
+	c.values = make([]pipeline.Value, l)
+	for i := 0; i < l; i++ {
+		c.values[i] = r.Value()
+	}
 	return c, nil
 }
 
 func (c calc) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
-	r, err := c.calc.Value(img)
-	if c.print && err == nil {
-		ctx.Print(c, fmt.Sprintf("%+v", r))
+	var output []string
+	if c.print {
+		output = make([]string, len(c.values))
+		defer func() {
+			ctx.Print(c, strings.Join(output, " "))
+		}()
 	}
 
-	return img, err
+	for i, calc := range c.values {
+		r, err := calc.Value(img)
+		if err != nil {
+			return img, err
+		}
+
+		if c.print {
+			output[i] = fmt.Sprintf("%+v", r)
+		}
+	}
+
+	return img, nil
 }
 
 type set struct {
