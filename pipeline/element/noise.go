@@ -50,7 +50,7 @@ func (dn denoise) Help() [][2]string {
 		},
 		{
 			"",
-			" over the given radius.",
+			"over the given radius.",
 		},
 	}
 }
