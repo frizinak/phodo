@@ -117,3 +117,22 @@ func Black(img *img48.Img, n float64) {
 
 	LUT16(img, l)
 }
+
+func Invert(img *img48.Img, r, g, b float64) {
+	l := img.Rect.Dx() * 3
+	or := uint32((1<<16 - 1) * r)
+	og := uint32((1<<16 - 1) * g)
+	ob := uint32((1<<16 - 1) * b)
+	nr := 1<<16 - 1 - or
+	ng := 1<<16 - 1 - og
+	nb := 1<<16 - 1 - ob
+
+	P48(img, func(pix []uint16, _ int) {
+		for o := 0; o < l; o += 3 {
+			r, g, b := uint32(pix[o+0]), uint32(pix[o+1]), uint32(pix[o+2])
+			pix[o+0] = uint16((or*((1<<16-1)-r) + nr*r) >> 16)
+			pix[o+1] = uint16((og*((1<<16-1)-g) + ng*g) >> 16)
+			pix[o+2] = uint16((ob*((1<<16-1)-b) + nb*b) >> 16)
+		}
+	})
+}

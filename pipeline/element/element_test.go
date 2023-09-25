@@ -323,6 +323,8 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 			)
 		case set:
 			// ignore
+		case invert:
+			els = append(els, Invert(1, 0.2, 0))
 		default:
 			constr = false
 		}

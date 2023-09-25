@@ -45,6 +45,8 @@ func init() {
 	pipeline.Register(clrRGB{})
 	pipeline.Register(clrRGB16{})
 
+	pipeline.Register(invert{})
+
 	pipeline.Register(rgbAdd{})
 	pipeline.Register(rgbMul{normalize: true})
 	pipeline.Register(rgbMul{normalize: false})
