@@ -477,20 +477,51 @@ func (d draw) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 type BlendMode string
 
 const (
-	BlendNone     BlendMode = "none"
-	BlendScreen   BlendMode = "screen"
+	BlendNone BlendMode = "none"
+
+	BlendAdd      BlendMode = "add"
+	BlendSubtract BlendMode = "subtract"
 	BlendMultiply BlendMode = "multiply"
-	BlendOverlay  BlendMode = "overlay"
-	BlendDarken   BlendMode = "darken"
-	BlendLighten  BlendMode = "lighten"
+	BlendDivide   BlendMode = "divide"
+
+	BlendSoftLight BlendMode = "soft-light"
+	BlendHardLight BlendMode = "hard-light"
+	BlendScreen    BlendMode = "screen"
+	BlendOverlay   BlendMode = "overlay"
+	BlendDarken    BlendMode = "darken"
+	BlendLighten   BlendMode = "lighten"
+
+	BlendDifference BlendMode = "difference"
+
+	BlendColorBurn  BlendMode = "color-burn"
+	BlendColorDodge BlendMode = "color-dodge"
+
+	BlendLinearBurn  BlendMode = "linear-burn"
+	BlendLinearDodge BlendMode = "linear-dodge"
+	BlendLinearLight BlendMode = "linear-light"
 )
 
 var BlendModes = map[BlendMode]core.Blender{
-	BlendScreen:   core.BlendScreen,
+	BlendAdd:      core.BlendAdd,
+	BlendSubtract: core.BlendSubtract,
 	BlendMultiply: core.BlendMultiply,
-	BlendOverlay:  core.BlendOverlay,
-	BlendDarken:   core.BlendDarken,
-	BlendLighten:  core.BlendLighten,
+	BlendDivide:   core.BlendDivide,
+
+	BlendSoftLight: core.BlendSoftLight,
+	BlendHardLight: core.BlendHardLight,
+	BlendScreen:    core.BlendScreen,
+	BlendOverlay:   core.BlendOverlay,
+	BlendDarken:    core.BlendDarken,
+	BlendLighten:   core.BlendLighten,
+
+	BlendDifference: core.BlendDifference,
+
+	BlendColorBurn:  core.BlendColorBurn,
+	BlendColorDodge: core.BlendColorDodge,
+
+	BlendLinearBurn:  core.BlendLinearBurn,
+	BlendLinearDodge: core.BlendLinearDodge,
+	BlendLinearLight: core.BlendLinearLight,
 }
 
 type drawKey struct {

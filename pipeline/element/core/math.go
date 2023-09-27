@@ -7,6 +7,13 @@ import (
 func add(v uint16, a int) uint16     { return intClampUint16(int(v) + a) }
 func mul(v uint16, a float64) uint16 { return floatClampUint16(float64(v) * a) }
 
+func abs32(x int32) uint16 {
+	if x < 0 {
+		x = -x
+	}
+	return uint16(x)
+}
+
 func floatClampUint16(r float64) uint16 {
 	if r > 1<<16-1 {
 		r = 1<<16 - 1

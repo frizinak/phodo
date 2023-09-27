@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"image"
 
 	"github.com/frizinak/phodo/img48"
@@ -17,10 +16,17 @@ func (s SimpleColor) Color() (uint16, uint16, uint16) { return s.R, s.G, s.B }
 
 type Blender func(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16)
 
-func BlendScreen(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
-	r = 0xffff - uint16((uint32(0xffff-sr)*uint32(0xffff-dr))>>16)
-	g = 0xffff - uint16((uint32(0xffff-sg)*uint32(0xffff-dg))>>16)
-	b = 0xffff - uint16((uint32(0xffff-sb)*uint32(0xffff-db))>>16)
+func BlendAdd(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	r = intClampUint16(int(dr) + int(sr))
+	g = intClampUint16(int(dg) + int(sg))
+	b = intClampUint16(int(db) + int(sb))
+	return
+}
+
+func BlendSubtract(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	r = intClampUint16(int(dr) - int(sr))
+	g = intClampUint16(int(dg) - int(sg))
+	b = intClampUint16(int(db) - int(sb))
 	return
 }
 
@@ -31,10 +37,58 @@ func BlendMultiply(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16)
 	return
 }
 
+func BlendDivide(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	r, g, b = 0xffff, 0xffff, 0xffff
+
+	if sr != 0 {
+		r = intClampUint16(int(dr) << 16 / int(sr))
+	}
+	if sg != 0 {
+		g = intClampUint16(int(dg) << 16 / int(sg))
+	}
+	if sb != 0 {
+		b = intClampUint16(int(db) << 16 / int(sb))
+	}
+
+	return
+}
+
+func BlendSoftLight(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	c := func(s, d float64) float64 {
+		return 0xffff * ((1-2*s)*d*d + 2*d*s)
+	}
+
+	r = floatClampUint16(c(float64(sr)/0xffff, float64(dr)/0xffff))
+	g = floatClampUint16(c(float64(sg)/0xffff, float64(dg)/0xffff))
+	b = floatClampUint16(c(float64(sb)/0xffff, float64(db)/0xffff))
+	return
+}
+
+func BlendHardLight(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	c := func(d, s uint16) uint16 {
+		if s > 0x7fff {
+			return 0xffff - uint16((uint32(0xffff-s)*uint32(0xffff-d))>>15)
+		}
+		return uint16((uint32(s) * uint32(d)) >> 15)
+	}
+
+	r = c(sr, dr)
+	g = c(sg, dg)
+	b = c(sb, db)
+	return
+}
+
+func BlendScreen(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	r = 0xffff - uint16((uint32(0xffff-sr)*uint32(0xffff-dr))>>16)
+	g = 0xffff - uint16((uint32(0xffff-sg)*uint32(0xffff-dg))>>16)
+	b = 0xffff - uint16((uint32(0xffff-sb)*uint32(0xffff-db))>>16)
+	return
+}
+
 func BlendOverlay(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
 	c := func(s, d uint16) uint16 {
 		if s > 0x7fff {
-			return 0xffff - uint16(uint32(0xffff-s)*uint32(0xffff-d)>>15)
+			return 0xffff - uint16((uint32(0xffff-s)*uint32(0xffff-d))>>15)
 		}
 		return uint16((uint32(s) * uint32(d)) >> 15)
 	}
@@ -70,6 +124,73 @@ func BlendLighten(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) 
 	r = c(sr, dr)
 	g = c(sg, dg)
 	b = c(sb, db)
+	return
+}
+
+func BlendDifference(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	r = abs32(int32(dr) - int32(sr))
+	g = abs32(int32(dg) - int32(sg))
+	b = abs32(int32(db) - int32(sb))
+	return
+}
+
+func BlendColorBurn(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	if sr != 0 {
+		r = 0xffff - intClampUint16(int(0xffff-dr)<<16/int(sr))
+	}
+	if sg != 0 {
+		g = 0xffff - intClampUint16(int(0xffff-dg)<<16/int(sg))
+	}
+	if sb != 0 {
+		b = 0xffff - intClampUint16(int(0xffff-db)<<16/int(sb))
+	}
+	return
+}
+
+func BlendColorDodge(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	r, g, b = 0xffff, 0xffff, 0xffff
+
+	if sr != 0xffff {
+		r = intClampUint16(int(dr) << 16 / int(0xffff-sr))
+	}
+	if sg != 0xffff {
+		g = intClampUint16(int(dg) << 16 / int(0xffff-sg))
+	}
+	if sb != 0xffff {
+		b = intClampUint16(int(db) << 16 / int(0xffff-sb))
+	}
+
+	return
+}
+
+func BlendLinearBurn(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	r = intClampUint16(int(dr) + int(sr) - 0xffff)
+	g = intClampUint16(int(dg) + int(sg) - 0xffff)
+	b = intClampUint16(int(db) + int(sb) - 0xffff)
+
+	return
+}
+
+func BlendLinearDodge(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	r = intClampUint16(int(dr) + int(sr) - 0x7fff)
+	g = intClampUint16(int(dg) + int(sg) - 0x7fff)
+	b = intClampUint16(int(db) + int(sb) - 0x7fff)
+
+	return
+}
+
+func BlendLinearLight(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
+	c := func(s, d int) int {
+		if s > 0x7fff {
+			return d + 2*s - 0x7fff
+		}
+		return d + 2*s - 0xffff
+	}
+
+	r = intClampUint16(c(int(sr), int(dr)))
+	g = intClampUint16(c(int(sg), int(dg)))
+	b = intClampUint16(c(int(sb), int(db)))
+
 	return
 }
 
@@ -324,9 +445,6 @@ func DrawCircleSrc(src, dst *img48.Img, sp, dp image.Point, outerRadius, innerRa
 				continue
 			}
 
-			if do > len(dst.Pix) {
-				fmt.Println(nx, ny, dst.Rect)
-			}
 			dpix := dst.Pix[do : do+3 : do+3]
 			spix := src.Pix[so : so+3 : so+3]
 
