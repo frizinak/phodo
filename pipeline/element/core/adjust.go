@@ -136,3 +136,19 @@ func Invert(img *img48.Img, r, g, b float64) {
 		}
 	})
 }
+
+func InvertFilm(img *img48.Img, r, g, b float64) {
+	exp := func(v uint16, a float64) uint16 {
+		return floatClampUint16(0xffff * math.Pow(1+float64(v)/0xffff, a))
+	}
+
+	l := img.Rect.Dx() * 3
+	re, ge, be := -(g * r), -g, -(g * b)
+	P48(img, func(pix []uint16, _ int) {
+		for o := 0; o < l; o += 3 {
+			pix[o+0] = exp(pix[o+0], re)
+			pix[o+1] = exp(pix[o+1], ge)
+			pix[o+2] = exp(pix[o+2], be)
+		}
+	})
+}

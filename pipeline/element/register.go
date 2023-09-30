@@ -46,6 +46,7 @@ func init() {
 	pipeline.Register(clrRGB16{})
 
 	pipeline.Register(invert{})
+	pipeline.Register(invertFilm{})
 
 	pipeline.Register(rgbAdd{})
 	pipeline.Register(rgbMul{normalize: true})
@@ -93,6 +94,8 @@ func init() {
 
 	pipeline.Register(text{})
 	pipeline.Register(ttfFontFile{})
+
+	pipeline.Register(sharpen{})
 
 	pipeline.Register(denoise{chroma: true})
 	pipeline.Register(denoise{chroma: false})
