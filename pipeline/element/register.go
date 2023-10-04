@@ -75,6 +75,7 @@ func init() {
 	pipeline.Register(set{})
 
 	pipeline.Register(contrast{})
+	pipeline.Register(contrastY{})
 	pipeline.Register(brightness{})
 	pipeline.Register(gamma{})
 	pipeline.Register(saturation{})

@@ -327,6 +327,8 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 			els = append(els, Invert(1, 0.2, 0))
 		case invertFilm:
 			els = append(els, InvertFilm(1.38, 1.5, 0.89))
+		case contrastY:
+			els = append(els, ContrastY(1.2))
 		default:
 			constr = false
 		}

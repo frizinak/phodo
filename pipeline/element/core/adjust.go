@@ -6,6 +6,38 @@ import (
 	"github.com/frizinak/phodo/img48"
 )
 
+func ContrastY(img *img48.Img, n float64) {
+	n--
+	if n < -1 {
+		n = -1
+	}
+	if n > 1 {
+		n = 1
+	}
+
+	l := make([]uint16, 1<<16)
+	const mul = 1 << 17
+	div := int(mul / (1 - math.Abs(n)))
+
+	const half = 1<<15 - 1
+	switch {
+	case -1 <= n && n <= 0:
+		for i := 0; i < 1<<16; i++ {
+			l[i] = uint16(half + (i-half)*mul/div)
+		}
+	case 0 < n && n < 1:
+		for i := 0; i < 1<<16; i++ {
+			l[i] = intClampUint16(half + (i-half)*div/mul)
+		}
+	default:
+		for i := half; i < 1<<16; i++ {
+			l[i] = 1<<16 - 1
+		}
+	}
+
+	LUT16Y(img, l)
+}
+
 func Contrast(img *img48.Img, n float64) {
 	n--
 	if n < -1 {

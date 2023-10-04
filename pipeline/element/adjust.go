@@ -9,6 +9,7 @@ import (
 )
 
 func Contrast(n float64) pipeline.Element   { return contrast{n: pipeline.PlainNumber(n)} }
+func ContrastY(n float64) pipeline.Element  { return contrastY{n: pipeline.PlainNumber(n)} }
 func Brightness(n float64) pipeline.Element { return brightness{n: pipeline.PlainNumber(n)} }
 func Gamma(n float64) pipeline.Element      { return gamma{n: pipeline.PlainNumber(n)} }
 func Saturation(n float64) pipeline.Element { return saturation{n: pipeline.PlainNumber(n)} }
@@ -53,6 +54,49 @@ func (c contrast) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	}
 
 	core.Contrast(img, n)
+
+	return img, nil
+}
+
+type contrastY struct {
+	n pipeline.Value
+}
+
+func (c contrastY) Name() string { return "contrast-luminance" }
+func (c contrastY) Inline() bool { return true }
+
+func (c contrastY) Help() [][2]string {
+	return [][2]string{
+		{
+			fmt.Sprintf("%s(<factor>)", c.Name()),
+			"Adjusts the luminance contrast by the given <factor>.",
+		},
+	}
+}
+
+func (c contrastY) Encode(w pipeline.Writer) error {
+	w.Value(c.n)
+	return nil
+}
+
+func (c contrastY) Decode(r pipeline.Reader) (interface{}, error) {
+	c.n = r.Value()
+	return c, nil
+}
+
+func (c contrastY) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(c)
+
+	if img == nil {
+		return img, pipeline.NewErrNeedImageInput(c.Name())
+	}
+
+	n, err := c.n.Float64(img)
+	if err != nil {
+		return img, err
+	}
+
+	core.ContrastY(img, n)
 
 	return img, nil
 }
