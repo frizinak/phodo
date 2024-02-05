@@ -153,7 +153,7 @@ func imageDecode(imageReader, exifReader io.ReadSeeker, extHint string, tryDCRAW
 				"-o", "1", // Colorspace: sRGB
 				"-t", "0", // Rotate 0 => ignores exif orientation (who wrote this...)
 				"-q", "0", // Interpolation: linear
-				"-H", "0", // Highliht mode: clip
+				"-H", "3", // Highliht mode: rebuild
 				tmp,
 			)
 
