@@ -80,6 +80,7 @@ func init() {
 	pipeline.Register(gamma{})
 	pipeline.Register(saturation{})
 	pipeline.Register(black{})
+	pipeline.Register(eq{})
 
 	pipeline.Register(resize{name: resizeNormal})
 	pipeline.Register(resize{name: resizeClip})

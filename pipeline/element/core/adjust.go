@@ -91,6 +91,30 @@ func Gamma(img *img48.Img, n float64) {
 	LUT16(img, l)
 }
 
+func Eq(img *img48.Img, ns ...float64) {
+	if len(ns) == 0 {
+		return
+	}
+	if len(ns) == 1 {
+		ns = []float64{ns[0], ns[0]}
+	}
+
+	l := make([]uint16, 1<<16)
+	c := uint32(0xffff/(len(ns)-1) + 1)
+	cf := float64(c)
+
+	var i uint32
+	for ; i < 1<<16; i++ {
+		ix := i / c
+		maxd := float64(i%c) / cf
+		mind := 1.0 - maxd
+		factor := ns[ix]*mind + ns[ix+1]*maxd
+		l[i] = floatClampUint16(factor * float64(i))
+	}
+
+	LUT16(img, l)
+}
+
 func RGBMultiply(img *img48.Img, r, g, b float64, norm bool) {
 	if norm {
 		sum := r + g + b

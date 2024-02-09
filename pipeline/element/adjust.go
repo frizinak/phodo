@@ -14,6 +14,13 @@ func Brightness(n float64) pipeline.Element { return brightness{n: pipeline.Plai
 func Gamma(n float64) pipeline.Element      { return gamma{n: pipeline.PlainNumber(n)} }
 func Saturation(n float64) pipeline.Element { return saturation{n: pipeline.PlainNumber(n)} }
 func Black(n float64) pipeline.Element      { return black{n: pipeline.PlainNumber(n)} }
+func Eq(ns ...float64) pipeline.Element {
+	l := make([]pipeline.Value, len(ns))
+	for i := range l {
+		l[i] = pipeline.PlainNumber(ns[i])
+	}
+	return eq{ns: l}
+}
 
 type contrast struct {
 	n pipeline.Value
@@ -269,6 +276,59 @@ func (b black) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	}
 
 	core.Black(img, n)
+
+	return img, nil
+}
+
+type eq struct {
+	ns []pipeline.Value
+}
+
+func (eq eq) Name() string { return "eq" }
+func (eq eq) Inline() bool { return true }
+
+func (eq eq) Help() [][2]string {
+	return [][2]string{
+		{
+			fmt.Sprintf("%s([factor1] [factor2] ...[factorN])", eq.Name()),
+			"Adjust image levels by the given factors.",
+		},
+	}
+}
+
+func (eq eq) Encode(w pipeline.Writer) error {
+	for _, v := range eq.ns {
+		w.Value(v)
+	}
+	return nil
+}
+
+func (eq eq) Decode(r pipeline.Reader) (interface{}, error) {
+	l := make([]pipeline.Value, r.Len())
+	for i := range l {
+		l[i] = r.Value()
+	}
+	eq.ns = l
+	return eq, nil
+}
+
+func (eq eq) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(eq)
+
+	if img == nil {
+		return img, pipeline.NewErrNeedImageInput(eq.Name())
+	}
+
+	l := make([]float64, len(eq.ns))
+	for i, v := range eq.ns {
+		n, err := v.Float64(img)
+		if err != nil {
+			return img, err
+		}
+		l[i] = n
+	}
+
+	core.Eq(img, l...)
 
 	return img, nil
 }
