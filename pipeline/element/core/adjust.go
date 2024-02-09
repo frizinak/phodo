@@ -99,17 +99,13 @@ func Eq(img *img48.Img, ns ...float64) {
 		ns = []float64{ns[0], ns[0]}
 	}
 
+	ns = splineCubic(ns, 1<<16)
+
 	l := make([]uint16, 1<<16)
-	c := uint32(0xffff/(len(ns)-1) + 1)
-	cf := float64(c)
 
 	var i uint32
 	for ; i < 1<<16; i++ {
-		ix := i / c
-		maxd := float64(i%c) / cf
-		mind := 1.0 - maxd
-		factor := ns[ix]*mind + ns[ix+1]*maxd
-		l[i] = floatClampUint16(factor * float64(i))
+		l[i] = floatClampUint16(ns[i] * float64(i))
 	}
 
 	LUT16(img, l)
