@@ -1,8 +1,10 @@
 package exif
 
 import (
+	"cmp"
 	"encoding/binary"
 	"io"
+	"slices"
 )
 
 type Writer struct {
@@ -28,6 +30,12 @@ func (w *Writer) WriteHeader() (n uint32, err error) {
 func (w *Writer) WriteBody() (n uint32, err error) {
 	if len(w.exif.IFDSet.IFDs) == 0 {
 		return 0, nil
+	}
+
+	for _, set := range w.exif.IFDSet.IFDs {
+		slices.SortFunc(set.List, func(a, b *Entry) int {
+			return cmp.Compare(a.Tag, b.Tag)
+		})
 	}
 
 	err = write(w.exif.IFDSet, w.w, w.firstIFD)

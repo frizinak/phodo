@@ -15,10 +15,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Andeling/tiff"
 	myexif "github.com/frizinak/phodo/exif"
 	"github.com/frizinak/phodo/img48"
-	"github.com/frizinak/phodo/jpeg"
+	myjpeg "github.com/frizinak/phodo/jpeg"
+	mytiff "github.com/frizinak/phodo/tiff"
 	"golang.org/x/image/bmp"
 
 	_ "image/gif"
@@ -100,12 +100,6 @@ func imageDecode(imageReader, exifReader io.ReadSeeker, extHint string, tryDCRAW
 	var err error
 	var typ string
 	var read bool
-
-	// Fast path
-	// image.DecodeConfig is almost slower for tiffs than github.com/Andeling/tiff
-	// so we are left with using the extHint.
-	// Well nvm, seems either a bit buggy or requires more work to arrange pixels
-	// in the correct order (for some tiffs).
 
 	// TODO better faster stronger jpeg decoder
 	// TODO better faster stronger tiff decoder
@@ -209,28 +203,7 @@ func ImageEncode(w io.Writer, img *img48.Img, ext string, quality int) error {
 	var err error
 	switch ext {
 	case ".tif", ".tiff":
-		var ws io.WriteSeeker
-		var mem *memWriteSeeker
-		if w, ok := w.(io.WriteSeeker); ok {
-			ws = w
-		}
-		if ws == nil {
-			mem = &memWriteSeeker{buf: make([]byte, 0, 1024*1024)}
-			ws = mem
-		}
-		enc := tiff.NewEncoder(ws)
-		ie := enc.NewImage()
-
-		ie.SetWidthHeight(img.Rect.Dx(), img.Rect.Dy())
-		ie.SetPixelFormat(2, 3, []int{16, 16, 16})
-		if len(img.Pix) != 3*img.Rect.Dx()*img.Rect.Dy() {
-			img = ImageCopyDiscard(img)
-		}
-
-		err = ie.EncodeImage(img.Pix)
-		if mem != nil && err == nil {
-			_, err = w.Write(mem.buf)
-		}
+		err = mytiff.EncodeWithExif(w, img, img.Exif)
 	case ".png":
 		err = png.Encode(w, img)
 	case ".gif":
@@ -240,7 +213,7 @@ func ImageEncode(w io.Writer, img *img48.Img, ext string, quality int) error {
 	case ".i48":
 		err = img48.Encode(w, img)
 	default:
-		err = jpeg.EncodeWithExif(w, img, img.Exif, quality)
+		err = myjpeg.EncodeWithExif(w, img, img.Exif, quality)
 	}
 
 	return err
