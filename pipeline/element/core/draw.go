@@ -240,10 +240,22 @@ func BlendKey(key Color, fuzz float64) Blender {
 	krMin, krMax := intClampUint16(kr-f), intClampUint16(kr+f)
 	kgMin, kgMax := intClampUint16(kg-f), intClampUint16(kg+f)
 	kbMin, kbMax := intClampUint16(kb-f), intClampUint16(kb+f)
+	abs := func(x int) int {
+		if x < 0 {
+			return -x
+		}
+		return x
+	}
+
 	return func(sx, sy int, dx, dy int, sr, sg, sb uint16, dr, dg, db uint16) (r, g, b uint16) {
 		r, g, b = sr, sg, sb
 		if r >= krMin && r <= krMax && g >= kgMin && g <= kgMax && b >= kbMin && b <= kbMax {
-			r, g, b = dr, dg, db
+			d := abs(int(r)-kr) + abs(int(g)-kg) + abs(int(b)-kb)
+			v := ((d / 6) << 16) / f
+			n := (1<<16 - 1) - v
+			r = uint16((v*int(r) + n*int(dr)) >> 16)
+			g = uint16((v*int(g) + n*int(dg)) >> 16)
+			b = uint16((v*int(b) + n*int(db)) >> 16)
 		}
 
 		return
