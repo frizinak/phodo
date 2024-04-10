@@ -14,7 +14,9 @@ import (
 )
 
 func Load(r io.ReadSeeker) pipeline.Element { return loader{r: r} }
-func LoadFile(path string) pipeline.Element { return loader{file: pipeline.PlainString(path)} }
+func LoadFile(path string, dcraw string) pipeline.Element {
+	return loader{file: pipeline.PlainString(path), dcraw: pipeline.PlainString(dcraw)}
+}
 func Save(w io.Writer, ext string, quality int) pipeline.Element {
 	return saver{
 		w:   w,
@@ -42,6 +44,8 @@ func normalizeExt(ext string) string {
 type loader struct {
 	file pipeline.Value
 	r    io.ReadSeeker
+
+	dcraw pipeline.Value
 }
 
 func (loader) Name() string { return "load-file" }
@@ -50,12 +54,20 @@ func (loader) Inline() bool { return true }
 func (l loader) Help() [][2]string {
 	return [][2]string{
 		{
-			fmt.Sprintf("%s(<path>>)", l.Name()),
+			fmt.Sprintf("%s(<path>, [dcraw])", l.Name()),
 			"Read and decode the image at <path>.",
 		},
 		{
 			"",
-			"<quality> [0-100]",
+			"[dcraw] command can be passed to customize dcraw binary path",
+		},
+		{
+			"",
+			"        and arguments. e.g.:",
+		},
+		{
+			"",
+			"        /usr/bin/dcraw_emu -T -6 -H 9 -q 0",
 		},
 	}
 }
@@ -65,11 +77,17 @@ func (l loader) Encode(w pipeline.Writer) error {
 		return errors.New("loaded from reader, not a file, can't encode")
 	}
 	w.Value(l.file)
+	if l.dcraw != nil {
+		w.Value(l.dcraw)
+	}
 	return nil
 }
 
 func (l loader) Decode(r pipeline.Reader) (interface{}, error) {
 	l.file = r.Value()
+	if r.Len() > 1 {
+		l.dcraw = r.Value()
+	}
 	return l, nil
 }
 
@@ -81,6 +99,16 @@ func (l loader) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		if err != nil {
 			return img, err
 		}
+	}
+
+	var dcraw []string
+	if l.dcraw != nil {
+		dcrawStr, err := l.dcraw.String(img)
+		if err != nil {
+			return img, err
+		}
+
+		dcraw = strings.Fields(dcrawStr)
 	}
 
 	ctx.Mark(l, file)
@@ -99,7 +127,7 @@ func (l loader) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 		r = rr
 	}
 
-	i, err := core.ImageDecode(r, extHint)
+	i, err := core.ImageDecode(r, extHint, dcraw)
 	cl()
 	if err != nil {
 		return img, err

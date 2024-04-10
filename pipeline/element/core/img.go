@@ -91,11 +91,11 @@ func TempFile(file string) string {
 	)
 }
 
-func ImageDecode(r io.ReadSeeker, extHint string) (*img48.Img, error) {
-	return imageDecode(r, r, extHint, true)
+func ImageDecode(r io.ReadSeeker, extHint string, dcraw []string) (*img48.Img, error) {
+	return imageDecode(r, r, extHint, true, dcraw)
 }
 
-func imageDecode(imageReader, exifReader io.ReadSeeker, extHint string, tryDCRAW bool) (*img48.Img, error) {
+func imageDecode(imageReader, exifReader io.ReadSeeker, extHint string, tryDCRAW bool, dcraw []string) (*img48.Img, error) {
 	var _img image.Image
 	var err error
 	var typ string
@@ -139,17 +139,23 @@ func imageDecode(imageReader, exifReader io.ReadSeeker, extHint string, tryDCRAW
 				}
 			}
 
-			cmd := exec.Command(
-				"dcraw_emu",
-				"-6",      // 16-bit
-				"-T",      // TIFF
-				"-w",      // Camera white balance
-				"-o", "0", // Colorspace: sRGB
-				"-t", "0", // Rotate 0 => ignores exif orientation (who wrote this...)
-				"-q", "3", // Interpolation: AHD
-				"-H", "9", // Highliht mode: rebuild
-				tmp,
-			)
+			if len(dcraw) == 0 {
+				dcraw = []string{
+					"dcraw_emu",
+					"-6",      // 16-bit
+					"-T",      // TIFF
+					"-w",      // Camera white balance
+					"-o", "0", // Colorspace: sRGB
+					"-t", "0", // Rotate 0 => ignores exif orientation (who wrote this...)
+					"-H", "2", // Highlight mode: rebuild
+				}
+			}
+
+			args := make([]string, len(dcraw)+1)
+			copy(args, dcraw)
+			args[len(args)-1] = tmp
+
+			cmd := exec.Command(args[0], args[1:]...)
 
 			if err := cmd.Run(); err != nil {
 				return nil, err
@@ -161,7 +167,7 @@ func imageDecode(imageReader, exifReader io.ReadSeeker, extHint string, tryDCRAW
 				return nil, err
 			}
 
-			img, err := imageDecode(f, exifReader, ".tif", false)
+			img, err := imageDecode(f, exifReader, ".tif", false, nil)
 
 			f.Close()
 			os.Remove(tif)

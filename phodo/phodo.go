@@ -315,9 +315,7 @@ func Editor(ctx context.Context, c Conf, file string) error {
 		}()
 	}
 
-	load := pipeline.New(
-		element.Once(element.LoadFile(c.inputFile)),
-	)
+	var load pipeline.Element
 
 	tShort := time.Millisecond * 20
 	tError := time.Millisecond * 1000
@@ -335,6 +333,8 @@ func Editor(ctx context.Context, c Conf, file string) error {
 	}
 
 	tick := make(chan struct{})
+	dcraw := ""
+
 	go func() {
 		var res *pipeline.Root
 		for range tick {
@@ -345,8 +345,12 @@ func Editor(ctx context.Context, c Conf, file string) error {
 			s := time.Now()
 			f, err := os.Open(c.Script)
 			if err != nil {
-				fmt.Fprintln(c.out, err)
-				time.Sleep(tError)
+				sleep := tShort
+				if !os.IsNotExist(err) {
+					fmt.Fprintln(c.out, err)
+					sleep = tError
+				}
+				time.Sleep(sleep)
 				continue
 			}
 
@@ -357,7 +361,11 @@ func Editor(ctx context.Context, c Conf, file string) error {
 				res = nil
 			}
 
-			res, err = pipeline.NewDecoder(f, c.vars, c.aliases).Decode(res)
+			vars := make(map[string]string, len(c.vars))
+			for k, v := range c.vars {
+				vars[k] = v
+			}
+			res, err = pipeline.NewDecoder(f, vars, c.aliases).Decode(res)
 			f.Close()
 			if err != nil {
 				fmt.Fprintln(c.out, err)
@@ -375,6 +383,13 @@ func Editor(ctx context.Context, c Conf, file string) error {
 			if e.Cached && !fullRefresh {
 				time.Sleep(tShort)
 				continue
+			}
+
+			if load == nil || dcraw != vars["dcraw"] {
+				dcraw = vars["dcraw"]
+				load = pipeline.New(
+					element.Once(element.LoadFile(c.inputFile, dcraw)),
+				)
 			}
 
 			out, err := pipeline.New(
@@ -408,15 +423,6 @@ func Editor(ctx context.Context, c Conf, file string) error {
 		}
 	}()
 
-	s := time.Now()
-	_, err = load.Do(rctx, nil)
-	if err != nil {
-		return err
-	}
-	if c.Verbose >= pipeline.VerboseTime {
-		print("Loading image", time.Since(s).Round(time.Millisecond).String())
-	}
-
 	var lastMod time.Time
 	for {
 		if err := ctx.Err(); err != nil {
@@ -431,8 +437,12 @@ func Editor(ctx context.Context, c Conf, file string) error {
 
 		s, err := os.Stat(c.Script)
 		if err != nil {
-			fmt.Fprintln(c.out, err)
-			time.Sleep(tError)
+			sleep := tShort
+			if !os.IsNotExist(err) {
+				fmt.Fprintln(c.out, err)
+				sleep = tError
+			}
+			time.Sleep(sleep)
 			continue
 		}
 
@@ -482,12 +492,14 @@ func Script(ctx context.Context, c Conf, script string) error {
 
 func LoadSidecar(c Conf, input string) (*pipeline.Root, error) {
 	c.inputFile = input
-	return load(c)
+	p, _, err := load(c)
+	return p, err
 }
 
 func LoadScript(c Conf, script string) (*pipeline.Root, error) {
 	c.Script = script
-	return load(c)
+	p, _, err := load(c)
+	return p, err
 }
 
 func SidecarPath(c Conf, input string) (string, error) {
@@ -497,31 +509,35 @@ func SidecarPath(c Conf, input string) (string, error) {
 	return c.Script, err
 }
 
-func load(c Conf) (*pipeline.Root, error) {
+func load(c Conf) (*pipeline.Root, map[string]string, error) {
 	var err error
 	c, err = c.Parse()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if c.Script == "" {
-		return nil, errors.New("no script to parse")
+		return nil, nil, errors.New("no script to parse")
 	}
 
 	f, err := os.Open(c.Script)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open pipeline script: %s: '%w'", c.Script, err)
+		return nil, nil, fmt.Errorf("failed to open pipeline script: %s: '%w'", c.Script, err)
 	}
 
-	r := pipeline.NewDecoder(f, c.vars, c.aliases)
+	vars := make(map[string]string, len(c.vars))
+	for k, v := range c.vars {
+		vars[k] = v
+	}
+	r := pipeline.NewDecoder(f, vars, c.aliases)
 	res, err := r.Decode(nil)
 	f.Close()
 
-	return res, err
+	return res, vars, err
 }
 
 func runScript(ctx context.Context, c Conf, mode pipeline.Mode) error {
-	root, err := load(c)
+	root, vars, err := load(c)
 	if err != nil {
 		return err
 	}
@@ -542,7 +558,7 @@ func runScript(ctx context.Context, c Conf, mode pipeline.Mode) error {
 
 	line := pipeline.New()
 	if c.inputFile != "" {
-		line.Add(element.LoadFile(c.inputFile))
+		line.Add(element.LoadFile(c.inputFile, vars["dcraw"]))
 	}
 
 	line.Add(pl.Element)

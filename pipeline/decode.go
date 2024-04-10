@@ -674,7 +674,7 @@ func (d *Decoder) decode(calcenv *env.Env, vars map[string]string, includes *[]s
 
 func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes *[]string, line *int) (*entry, error) {
 	buf := make([]rune, 0, 1)
-	var str, esc, calc, wasCalc, inc bool
+	var str, esc, calc, wasCalc, inc, conf bool
 	varbuf := make([]rune, 0, 1)
 	e.line = *line + 1
 
@@ -729,7 +729,7 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 			calc = false
 			wasCalc = true
 
-		case (space || r == parenClose) && !str && !esc && !calc && !inc:
+		case (space || r == parenClose) && !str && !esc && !calc && !inc && !conf:
 			val := strings.TrimSpace(string(buf))
 			if val == "" {
 				if r == parenClose {
@@ -744,7 +744,7 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 				return e, nil
 			}
 
-		case r == parenOpen && !str && !esc && !calc && !inc:
+		case r == parenOpen && !str && !esc && !calc && !inc && !conf:
 			val := strings.TrimSpace(string(buf))
 			if val == "" {
 				val = anonPipeline
@@ -757,8 +757,27 @@ func (d *Decoder) entries(e *entry, depth int, vars map[string]string, includes 
 			}
 			e.values = append(e.values, ne)
 
-		case d.state.nl && r == '#' && !inc:
-			inc = true
+		case d.state.nl && r == '#':
+			if d.r.ReadRune() == '=' {
+				conf = true
+				continue
+			}
+			d.r.UnreadRune()
+			buf = append(buf, r)
+
+			if !inc {
+				inc = true
+			}
+		case r == '\n' && conf:
+			c := strings.TrimSpace(string(buf))
+			kv := strings.SplitN(c, "=", 2)
+			if len(kv) != 2 {
+				return e, fmt.Errorf("not a valid assignment: '%s'", c)
+			}
+			vars[kv[0]] = kv[1]
+			buf = buf[:0]
+			conf = false
+
 		case r == '\n' && inc:
 			f := string(buf)
 			*includes = append(*includes, f)
