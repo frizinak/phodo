@@ -79,7 +79,7 @@ func handleFormat(c phodo.Conf, args []string) error {
 	if err := parseAssignments(c, args[1:]); err != nil {
 		return err
 	}
-	root, err := phodo.LoadScript(c, args[0])
+	root, _, err := phodo.LoadScript(c, args[0])
 	if err != nil {
 		return err
 	}

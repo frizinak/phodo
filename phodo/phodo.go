@@ -490,16 +490,14 @@ func Script(ctx context.Context, c Conf, script string) error {
 	return runScript(ctx, c, pipeline.ModeScript)
 }
 
-func LoadSidecar(c Conf, input string) (*pipeline.Root, error) {
+func LoadSidecar(c Conf, input string) (*pipeline.Root, map[string]string, error) {
 	c.inputFile = input
-	p, _, err := load(c)
-	return p, err
+	return load(c)
 }
 
-func LoadScript(c Conf, script string) (*pipeline.Root, error) {
+func LoadScript(c Conf, script string) (*pipeline.Root, map[string]string, error) {
 	c.Script = script
-	p, _, err := load(c)
-	return p, err
+	return load(c)
 }
 
 func SidecarPath(c Conf, input string) (string, error) {
