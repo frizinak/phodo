@@ -88,7 +88,7 @@ func Gamma(img *img48.Img, n float64) {
 		l[i] = uint16(math.Pow(float64(i)/(1<<16-1), e) * (1<<16 - 1))
 	}
 
-	LUT16(img, l)
+	LUT16Y(img, l)
 }
 
 func Eq(img *img48.Img, ns ...float64) {
@@ -156,18 +156,21 @@ func Saturation(img *img48.Img, n float64) {
 }
 
 func Black(img *img48.Img, n float64) {
+	if n < 1 {
+		Gamma(img, 1+(1-n))
+		return
+	}
+
 	l := make([]uint16, 1<<16)
 	const m = 1<<16 - 1
 	start := (n - 1) * m
-	if start < 0 {
-		start = 0
-	}
 	rng := m - start
+
 	for i := int(start); i <= m; i++ {
 		l[i] = uint16((float64(i) - start) * m / rng)
 	}
 
-	LUT16(img, l)
+	LUT16Y(img, l)
 }
 
 func Invert(img *img48.Img, r, g, b float64) {
