@@ -59,7 +59,7 @@ func (l loader) Help() [][2]string {
 		},
 		{
 			"",
-			"[dcraw] command can be passed to customize dcraw binary path",
+			"[dcraw] command can be passed to customize dcraw binary path and arguments",
 		},
 		{
 			"",

@@ -385,8 +385,13 @@ func Editor(ctx context.Context, c Conf, file string) error {
 				continue
 			}
 
-			if load == nil || dcraw != vars["dcraw"] {
-				dcraw = vars["dcraw"]
+			dcrawk := "dcraw_edit"
+			if _, ok := vars[dcrawk]; !ok {
+				dcrawk = "dcraw"
+			}
+
+			if load == nil || dcraw != vars[dcrawk] {
+				dcraw = vars[dcrawk]
 				load = pipeline.New(
 					element.Once(element.LoadFile(c.inputFile, dcraw)),
 				)
