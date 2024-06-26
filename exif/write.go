@@ -22,12 +22,24 @@ func NewWriter(w io.Writer, exif *Exif, firstIFD uint32) *Writer {
 }
 
 func (w *Writer) WriteHeader() (n uint32, err error) {
-	w.w.Write(w.exif.Header[:4])
+	head := littleE
+	if w.exif.ByteOrder == binary.BigEndian {
+		head = bigE
+	}
+	w.w.Write(head)
 	w.w.Write32(8 + w.firstIFD)
 	return w.w.n, nil
 }
 
 func (w *Writer) WriteBody() (n uint32, err error) {
+	ifds := make([]*IFD, 0, len(w.exif.IFDSet.IFDs))
+	for i, ifd := range w.exif.IFDSet.IFDs {
+		if i == 0 || len(ifd.List) != 0 {
+			ifds = append(ifds, ifd)
+		}
+	}
+	w.exif.IFDSet.IFDs = ifds
+
 	if len(w.exif.IFDSet.IFDs) == 0 {
 		return 0, nil
 	}

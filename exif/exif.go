@@ -127,8 +127,7 @@ func (set *IFDSet) Clone() *IFDSet {
 	if set == nil {
 		return nil
 	}
-	n := newIFDSet()
-	n.ByteOrder = set.ByteOrder
+	n := newIFDSet(set.ByteOrder)
 	for _, ifd := range set.IFDs {
 		n.IFDs = append(n.IFDs, ifd.Clone())
 	}
@@ -153,7 +152,7 @@ func (set *IFDSet) Ensure(page int, tag, typ uint16) *Entry {
 		ByteOrder: set.ByteOrder,
 		Tag:       tag,
 		Typ:       typ,
-		IFDSet:    newIFDSet(),
+		IFDSet:    newIFDSet(set.ByteOrder),
 	}
 
 	set.IFDs[page].List = append(set.IFDs[page].List, e)
@@ -289,11 +288,11 @@ var (
 	littleE = []byte{0x49, 0x49, 0x2a, 0x00}
 )
 
-func newIFDSet() *IFDSet {
+func newIFDSet(order binary.ByteOrder) *IFDSet {
 	return &IFDSet{
-		ByteOrder: binary.LittleEndian,
+		ByteOrder: order,
 		IFDs:      make([]*IFD, 0, 1),
 	}
 }
 
-func New() *Exif { return &Exif{IFDSet: newIFDSet()} }
+func New() *Exif { return &Exif{IFDSet: newIFDSet(binary.LittleEndian)} }

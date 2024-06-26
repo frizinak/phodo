@@ -62,7 +62,7 @@ func tryOne(set *IFDSet, r *bufseeker, start, offset, correct int64) (int64, err
 			return 0, err
 		}
 
-		e := &Entry{ByteOrder: set.ByteOrder, IFDSet: newIFDSet()}
+		e := &Entry{ByteOrder: set.ByteOrder, IFDSet: newIFDSet(set.ByteOrder)}
 		e.Tag = set.ByteOrder.Uint16(buf[0:2])
 		e.Typ = set.ByteOrder.Uint16(buf[2:4])
 		e.Num = set.ByteOrder.Uint32(buf[4:8])
@@ -75,8 +75,7 @@ func tryOne(set *IFDSet, r *bufseeker, start, offset, correct int64) (int64, err
 
 		if _, ok := subs[e.Tag]; ok {
 			suboff := int64(set.ByteOrder.Uint32(e.Data))
-			subexif := newIFDSet()
-			subexif.ByteOrder = set.ByteOrder
+			subexif := newIFDSet(set.ByteOrder)
 			e.IFDSet = subexif
 			err = try(subexif, r, start, suboff, correct)
 			if err != nil {
