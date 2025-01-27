@@ -222,3 +222,13 @@ func ycbcr(img *img48.Img) []int {
 
 	return pix
 }
+
+func ycbcrY(img *img48.Img) []int {
+	pix := make([]int, len(img.Pix)/3)
+	for o := 0; o < len(img.Pix); o += 3 {
+		r, g, b := int(img.Pix[o+0]), int(img.Pix[o+1]), int(img.Pix[o+2])
+		pix[o/3] = 19595*r + 38470*g + 7471*b
+	}
+
+	return pix
+}

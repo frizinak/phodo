@@ -246,6 +246,8 @@ func testAll(t *testing.T, n func() *img48.Img, onerr func(err error)) {
 			els = append(els, Brightness(0), Brightness(5.3), Brightness(-1))
 		case gamma:
 			els = append(els, Gamma(0), Gamma(5.3), Gamma(-1))
+		case autogamma:
+			els = append(els, AutoGamma(0), AutoGamma(1.0), AutoGamma(0.5), AutoGammaRegion(50, 50, -30, 100, 0.5))
 		case saturation:
 			els = append(els, Saturation(0), Saturation(5.3), Saturation(-1))
 		case black:

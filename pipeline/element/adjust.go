@@ -22,6 +22,22 @@ func Eq(ns ...float64) pipeline.Element {
 	return eq{ns: l}
 }
 
+func AutoGamma(mid float64) pipeline.Element {
+	return autogamma{
+		mid: pipeline.PlainNumber(mid),
+	}
+}
+
+func AutoGammaRegion(x, y, w, h float64, mid float64) pipeline.Element {
+	return autogamma{
+		x:   pipeline.PlainNumber(x),
+		y:   pipeline.PlainNumber(y),
+		w:   pipeline.PlainNumber(w),
+		h:   pipeline.PlainNumber(h),
+		mid: pipeline.PlainNumber(mid),
+	}
+}
+
 type contrast struct {
 	n pipeline.Value
 }
@@ -329,6 +345,103 @@ func (eq eq) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	}
 
 	core.Eq(img, l...)
+
+	return img, nil
+}
+
+type autogamma struct {
+	x, y pipeline.Value
+	w, h pipeline.Value
+	mid  pipeline.Value
+}
+
+func (g autogamma) Name() string { return "autogamma" }
+func (g autogamma) Inline() bool { return true }
+
+func (g autogamma) Help() [][2]string {
+	return [][2]string{
+		{
+			fmt.Sprintf("%s([mid-point])", g.Name()),
+			"",
+		},
+		{
+			fmt.Sprintf("%s(<x> <y> <w> <h> [mid-point])", g.Name()),
+			"Center the histogram within the given region around the given",
+		},
+		{
+			"",
+			"mid-point (default: 0.5)",
+		},
+	}
+}
+
+func (g autogamma) Encode(w pipeline.Writer) error {
+	if g.x != nil {
+		w.Value(g.x)
+		w.Value(g.y)
+		w.Value(g.w)
+		w.Value(g.h)
+	}
+
+	if g.mid != nil {
+		w.Value(g.mid)
+	}
+
+	return nil
+}
+
+func (g autogamma) Decode(r pipeline.Reader) (interface{}, error) {
+	if r.Len() > 1 {
+		g.x = r.Value()
+		g.y = r.Value()
+		g.w = r.Value()
+		g.h = r.Value()
+	}
+
+	g.mid = r.ValueDefault(pipeline.PlainNumber(0.5))
+	return g, nil
+}
+
+func (g autogamma) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
+	ctx.Mark(g)
+
+	if img == nil {
+		return img, pipeline.NewErrNeedImageInput(g.Name())
+	}
+
+	rect := img.Rect
+	if g.x != nil {
+		x, err := g.x.Int(img)
+		if err != nil {
+			return img, err
+		}
+		y, err := g.y.Int(img)
+		if err != nil {
+			return img, err
+		}
+		w, err := g.w.Int(img)
+		if err != nil {
+			return img, err
+		}
+		h, err := g.h.Int(img)
+		if err != nil {
+			return img, err
+		}
+
+		rect.Min.X += x
+		rect.Min.Y += y
+		rect.Max.X = rect.Min.X + w
+		rect.Max.Y = rect.Min.Y + h
+	}
+
+	mid, err := g.mid.Float64(img)
+	if err != nil {
+		return img, err
+	}
+
+	g1, g2 := core.AutoGamma(img, rect, mid)
+
+	ctx.Print(g, fmt.Sprintf("gamma(%.4f) gamma(%.4f)", g1, g2))
 
 	return img, nil
 }

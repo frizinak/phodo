@@ -1,6 +1,7 @@
 package core
 
 import (
+	"image"
 	"math"
 
 	"github.com/frizinak/phodo/img48"
@@ -85,7 +86,7 @@ func Gamma(img *img48.Img, n float64) {
 	l := make([]uint16, 1<<16)
 
 	for i := 0; i < 1<<16; i++ {
-		l[i] = uint16(math.Pow(float64(i)/(1<<16-1), e) * (1<<16 - 1))
+		l[i] = uint16(math.Pow(float64(i)/0xffff, e) * 0xffff)
 	}
 
 	LUT16Y(img, l)
@@ -109,6 +110,56 @@ func Eq(img *img48.Img, ns ...float64) {
 	}
 
 	LUT16(img, l)
+}
+
+func AutoGamma(img *img48.Img, region image.Rectangle, mid float64) (g1, g2 float64) {
+	yy := ycbcrY(ImageDiscard(img.SubImage(region).(*img48.Img)))
+	l := make([]uint16, 1<<16)
+	lo, hi := 1<<16, 0
+	var max uint16
+	for _, v := range yy {
+		v = v >> 16
+		l[v]++
+	}
+
+	for v := range l {
+		if l[v] > max {
+			max = l[v]
+		}
+	}
+
+	for v, count := range l {
+		if count <= max/8 {
+			continue
+		}
+		if v < lo {
+			lo = v
+		}
+		if v > hi {
+			hi = v
+		}
+	}
+
+	exp := func(source, target float64) float64 {
+		return math.Log(target/0xffff) / math.Log(source/0xffff)
+	}
+
+	gam := func(i, e float64) float64 {
+		return math.Pow(i/0xffff, e) * 0xffff
+	}
+
+	e1 := exp(float64(lo), 100)
+	nlo := math.Pow(float64(lo)/0xffff, e1) * 0xffff
+	nhi := math.Pow(float64(hi)/0xffff, e1) * 0xffff
+	e2 := exp(nlo+(nhi-nlo)*mid, 0x7fff)
+
+	for i := 0; i < 1<<16; i++ {
+		l[i] = uint16(gam(gam(float64(i), e1), e2))
+	}
+
+	LUT16Y(img, l)
+
+	return 1 / e1, 1 / e2
 }
 
 func RGBMultiply(img *img48.Img, r, g, b float64, norm bool) {
