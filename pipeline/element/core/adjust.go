@@ -216,9 +216,10 @@ func Black(img *img48.Img, n float64) {
 	const m = 1<<16 - 1
 	start := (n - 1) * m
 	rng := m - start
+	is := int(start)
 
-	for i := int(start); i <= m; i++ {
-		l[i] = uint16((float64(i) - start) * m / rng)
+	for i := is; i <= m; i++ {
+		l[i] = floatClampUint16(float64(i-is) * m / rng)
 	}
 
 	LUT16Y(img, l)
