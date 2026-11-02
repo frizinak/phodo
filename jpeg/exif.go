@@ -38,6 +38,8 @@ type jwriter struct {
 }
 
 func (w *jwriter) Write(b []byte) (n int, err error) {
+	wasBuffering := w.startOffset == 0
+
 	if w.startOffset == 0 {
 		w.buf = append(w.buf, b...)
 
@@ -62,7 +64,7 @@ func (w *jwriter) Write(b []byte) (n int, err error) {
 			if len(buf) < 4 {
 				break
 			}
-			var length = 0
+			length := 0
 			dmark := r(2)
 			mark := binary.BigEndian.Uint16(dmark)
 
@@ -103,7 +105,9 @@ func (w *jwriter) Write(b []byte) (n int, err error) {
 			r(length)
 		}
 
-		return len(b), nil
+		if w.startOffset == 0 {
+			return len(b), nil
+		}
 	}
 
 	if w.app1.offset != 0 {
@@ -149,6 +153,10 @@ func (w *jwriter) Write(b []byte) (n int, err error) {
 			return 0, err
 		}
 		w.buf = w.buf[:0]
+	}
+
+	if wasBuffering {
+		return len(b), nil
 	}
 
 	n, err = w.w.Write(b)

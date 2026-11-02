@@ -17,6 +17,7 @@ func Load(r io.ReadSeeker) pipeline.Element { return loader{r: r} }
 func LoadFile(path string, dcraw string) pipeline.Element {
 	return loader{file: pipeline.PlainString(path), dcraw: pipeline.PlainString(dcraw)}
 }
+
 func Save(w io.Writer, ext string, quality int) pipeline.Element {
 	return saver{
 		w:   w,
@@ -191,11 +192,11 @@ func (s saver) Do(ctx pipeline.Context, img *img48.Img) (*img48.Img, error) {
 	}
 
 	w := s.w
-	cl := func(error) error { return nil }
+	cl := func(err error) error { return err }
 	if w == nil {
 		var ww io.WriteCloser
 		tmp := core.TempFile(file)
-		os.MkdirAll(filepath.Dir(file), 0755)
+		os.MkdirAll(filepath.Dir(file), 0o755)
 		ww, err = os.Create(tmp)
 		if err != nil {
 			return img, err
